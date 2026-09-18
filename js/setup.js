@@ -349,8 +349,19 @@ function stepService(card){
 
   var url = field(card, 'Indirizzo del servizio', settings.syncUrl || '',
                   'https://qualcosa.workers.dev');
-  var token = field(card, 'Parola condivisa', settings.syncToken || '',
-                    'inventala tu, lunga');
+  var token = field(card, 'Parola condivisa', settings.syncToken || '', '');
+
+  if (!token.value) token.value = freshToken();
+
+  var rigenera = document.createElement('button');
+  rigenera.type = 'button';
+  rigenera.className = 'btn';
+  rigenera.style.marginTop = '4px';
+  rigenera.textContent = 'Generane un altra';
+  rigenera.addEventListener('click', function(){ token.value = freshToken(); });
+  card.appendChild(rigenera);
+
+  para(card, 'La parola l ho generata io lunga e casuale, perche una inventata a mano si indovina. Va copiata identica nel servizio e sul secondo tablet.');
 
   var result = note(card, '');
 
@@ -384,30 +395,63 @@ function stepService(card){
   }});
 }
 
+// Una parola inventata a mano si indovina in poche ore. Questa esce dal
+// generatore di numeri casuali del browser, quello usato per la
+// crittografia, ed e lunga abbastanza da rendere inutile ogni tentativo.
+function freshToken(){
+  var bytes = new Uint8Array(24);
+  (window.crypto || window.msCrypto).getRandomValues(bytes);
+  var out = '';
+  var alfabeto = 'abcdefghijkmnopqrstuvwxyz23456789';
+  for (var i = 0; i < bytes.length; i++) out += alfabeto[bytes[i] % alfabeto.length];
+  return out;
+}
+
 // ---- tuya ----
 
 function stepTuya(card){
   title(card, 'Le luci e il citofono');
-  para(card, 'Le luci e il citofono passano da Tuya. Servono due codici, una volta sola.');
+  para(card, 'Il citofono passa da Tuya. Le luci HeySmart quasi certamente anche, perche la maggior parte dei marchi italiani usa quella infrastruttura con la propria veste grafica.');
 
   where(card, [
-    'Vai su iot.tuya.com e registrati gratuitamente.',
-    'Crea un progetto di tipo Cloud, scegliendo l Europa centrale come zona.',
-    'Nella pagina del progetto trovi Access ID e Access Secret: sono i due codici da incollare qui.',
-    'Nella sezione Devices, scheda Link App Account, collega l account dell app che usi gia per le luci.',
-    'Se le luci le vedi anche nell app Smart Life, collega quella: e la stessa cosa.'
+    'Prima una verifica di due minuti: installa l app Smart Life ed entra con le stesse credenziali che usi su HeySmart. Se le luci compaiono, siamo a posto.',
+    'Se non compaiono, prova a rifare la registrazione dei dispositivi dentro Smart Life: sono gli stessi apparecchi.',
+    'Poi vai su iot.tuya.com e registrati gratuitamente.',
+    'Crea un progetto di tipo Cloud scegliendo Europa centrale come zona.',
+    'Nella pagina del progetto trovi Access ID e Access Secret: sono i due codici da incollare qui sotto.',
+    'Nella sezione Devices, scheda Link App Account, premi Add App Account e inquadra il codice che compare con l app Smart Life.'
   ]);
 
-  var id = field(card, 'Access ID', settings.tuyaId || '', 'incolla qui');
-  var secret = field(card, 'Access Secret', settings.tuyaSecret || '', 'incolla qui');
+  var id = field(card, 'Access ID', '', 'incolla qui');
+  var secret = field(card, 'Access Secret', '', 'incolla qui');
+  var esito = note(card, settings.tuyaConfigured ? 'Le chiavi sono gia state affidate al servizio.' : '');
 
-  para(card, 'I codici non restano sul tablet: li custodisce il servizio.');
+  para(card, 'I codici partono verso il servizio e non vengono mai scritti sul tablet. Per questo il campo resta vuoto anche dopo averli inseriti.');
+  note(card, 'Se le luci non compaiono in Smart Life, vuol dire che HeySmart non usa Tuya. In quel caso resteranno fuori dal pannello, come il Broadlink, finche non ci sara un ponte in casa.');
 
   buttons(card, { back: true, skip: true, onNext: function(){
-    settings.tuyaId = id.value.trim();
-    settings.tuyaSecret = secret.value.trim();
-    save();
-    next();
+    var a = id.value.trim();
+    var b = secret.value.trim();
+    if (!a || !b) { next(); return; }
+
+    if (!settings.syncUrl) {
+      esito.textContent = 'Senza il servizio non ho dove custodire le chiavi. Torna indietro e impostalo prima.';
+      return;
+    }
+
+    esito.textContent = 'Invio le chiavi al servizio...';
+    fetch(String(settings.syncUrl).replace(/\/+$/, '') + '/secrets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Casa-Token': settings.syncToken },
+      body: JSON.stringify({ tuyaId: a, tuyaSecret: b })
+    }).then(function(r){
+      if (!r.ok) throw new Error('il servizio ha risposto ' + r.status);
+      settings.tuyaConfigured = true;
+      save();
+      next();
+    }).catch(function(e){
+      esito.textContent = 'Non sono riuscito a consegnarle: ' + e.message;
+    });
   }});
 }
 

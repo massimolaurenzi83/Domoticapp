@@ -10,7 +10,7 @@
 
 import { settings, isDaytime, isSleepHours } from './config.js';
 import { initScreen, applyScheduledBrightness, screenDiagnostics } from './screen.js';
-import { startPresence, stopPresence, presenceDiagnostics, armSentinel, disarmSentinel, isArmed } from './presence.js';
+import { startPresence, stopPresence, presenceDiagnostics, armSentinel, disarmSentinel, isArmed, armedSince } from './presence.js';
 import { fetchWeather } from './weather.js';
 import { loadPhotos, nextPhoto, photoCount } from './photos.js';
 import { buildSettings, renderTab, timeString, dateString, agendaHooks, currentProfile } from './ui.js';
@@ -18,6 +18,8 @@ import { parseWhen, addReminder, describeWhen } from './reminders.js';
 import { pinOk, pinRequired } from './profiles.js';
 import { securityHooks } from './security-view.js';
 import { setupDone, startSetup, resetSetup } from './setup.js';
+import { startBackups, saveLocalCopy, pushToService, downloadFile, readFile,
+         restore, backupDiagnostics, pullFromService } from './backup.js';
 import { bridgeDiagnostics, checkBridge } from './bridge.js';
 import { startSimulation, stopSimulation, simulationDiagnostics, noteHabit } from './presence-sim.js';
 import { startAlarms, alarmDiagnostics } from './alarm-clock.js';
@@ -153,6 +155,7 @@ function updateDiagnostics(){
     presenceDiagnostics(),
     voiceDiagnostics(),
     bridgeDiagnostics(),
+    backupDiagnostics(),
     simulationDiagnostics(),
     alarmDiagnostics(),
     'Allineamento: ' + (syncConfigured() ? syncStatus() : 'solo questo tablet'),
@@ -272,6 +275,20 @@ function boot(){
 
   onToggle(noteHabit);
 
+  startBackups();
+  setupBackupButtons();
+
+  // Se il tablet si e riavviato mentre la sentinella era armata, la
+  // sorveglianza riprende da sola e lo schermo lo dice.
+  if (isArmed()) {
+    startSimulation();
+    var da = armedSince();
+    var quando = da ? new Date(da).toLocaleString('it-IT') : 'prima del riavvio';
+    setTimeout(function(){
+      showVoiceBar('Sentinella ancora armata', 'Sorveglianza ripresa. Armata dal ' + quando + '.');
+    }, 1500);
+  }
+
   registerWorker();
   checkBridge();
 
@@ -336,6 +353,68 @@ function setupVoice(){
 }
 
 // ---------- microfono e fotocamera ----------
+
+// ---------- copia di sicurezza ----------
+
+function setupBackupButtons(){
+  var esito = document.getElementById('backup-note');
+
+  document.getElementById('btn-backup-now').addEventListener('click', function(){
+    esito.textContent = 'Salvo...';
+    saveLocalCopy().then(function(at){
+      if (!at) { esito.textContent = 'Non sono riuscito a salvare la copia.'; return; }
+      return pushToService().then(function(suServizio){
+        esito.textContent = 'Copia salvata sul tablet' +
+          (suServizio ? ' e sul servizio.' : '. Il servizio non e raggiungibile.');
+        updateDiagnostics();
+      });
+    });
+  });
+
+  document.getElementById('btn-backup-file').addEventListener('click', function(){
+    var nome = downloadFile();
+    esito.textContent = 'Scaricato il file ' + nome + '. Tienilo da parte.';
+  });
+
+  var picker = document.getElementById('backup-file');
+  document.getElementById('btn-backup-load').addEventListener('click', function(){
+    picker.click();
+  });
+
+  picker.addEventListener('change', function(){
+    if (!picker.files || !picker.files[0]) return;
+    esito.textContent = 'Leggo il file...';
+    readFile(picker.files[0]).then(function(copy){
+      var quando = new Date(copy.at).toLocaleString('it-IT');
+      if (!window.confirm('Ripristino la copia del ' + quando +
+          '? Le impostazioni attuali di questo tablet verranno sostituite.')) {
+        esito.textContent = 'Ripristino annullato.';
+        return;
+      }
+      restore(copy);
+      esito.textContent = 'Ripristinata la copia del ' + quando + '. Ricarico...';
+      setTimeout(function(){ location.reload(); }, 1200);
+    }).catch(function(e){
+      esito.textContent = 'Non riesco a leggere il file: ' + e.message;
+    });
+    picker.value = '';
+  });
+
+  document.getElementById('btn-backup-service').addEventListener('click', function(){
+    esito.textContent = 'Cerco una copia sul servizio...';
+    pullFromService().then(function(copy){
+      if (!copy) { esito.textContent = 'Nessuna copia trovata sul servizio.'; return; }
+      var quando = new Date(copy.at).toLocaleString('it-IT');
+      if (!window.confirm('Ripristino la copia del ' + quando + ' presa dal servizio?')) {
+        esito.textContent = 'Ripristino annullato.';
+        return;
+      }
+      restore(copy);
+      esito.textContent = 'Ripristinata. Ricarico...';
+      setTimeout(function(){ location.reload(); }, 1200);
+    });
+  });
+}
 
 function setupPrivacyPanel(){
   var panel = document.getElementById('privacy');

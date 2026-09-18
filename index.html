@@ -77,6 +77,17 @@
   <div class="sheet-inner">
     <h2>Impostazioni</h2>
     <div class="set-grid" id="set-grid"></div>
+    <div class="set-hint" style="margin-top:22px;font-size:12px;letter-spacing:1px;text-transform:uppercase;">Copia di sicurezza</div>
+    <p class="set-hint">Una copia viene salvata dentro il tablet ogni giorno, e sul servizio se configurato. Se Android ripulisce la memoria, il pannello si rimette a posto da solo al riavvio.</p>
+    <div class="sheet-actions">
+      <button class="btn" id="btn-backup-now" type="button">Salva adesso</button>
+      <button class="btn" id="btn-backup-file" type="button">Scarica un file</button>
+      <button class="btn" id="btn-backup-load" type="button">Ripristina da file</button>
+      <button class="btn" id="btn-backup-service" type="button">Ripristina dal servizio</button>
+    </div>
+    <input type="file" id="backup-file" accept="application/json,.json" hidden>
+    <p class="set-hint" id="backup-note"></p>
+
     <div class="sheet-actions">
       <button class="btn" id="btn-cam-test" type="button">Prova fotocamera</button>
       <button class="btn" id="btn-push" type="button">Attiva notifiche</button>

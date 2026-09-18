@@ -21,7 +21,23 @@ var previous = null, stream = null, timer = null;
 var streak = null;
 var onMotion = null, onAlarm = null;
 
-var armed = false;
+// Lo stato armato sta su disco, non solo in memoria: un riavvio del
+// tablet mentre sei in viaggio non deve spegnere la sorveglianza in
+// silenzio.
+var ARMED_KEY = 'domapp.sentinel.armed.v1';
+
+function readArmed(){
+  try { return JSON.parse(localStorage.getItem(ARMED_KEY) || 'null'); } catch (e) { return null; }
+}
+
+function writeArmed(value){
+  try {
+    if (value) localStorage.setItem(ARMED_KEY, JSON.stringify(value));
+    else localStorage.removeItem(ARMED_KEY);
+  } catch (e) {}
+}
+
+var armed = !!readArmed();
 var burstUntil = 0;
 var currentEvent = null;
 var lastReading = null;
@@ -62,7 +78,7 @@ export function startPresence(callbacks){
     previous = null;
     streak = new Streak(2);
     timer = setInterval(sample, PERIOD);
-    status = 'attiva';
+    status = armed ? 'sentinella armata' : 'attiva';
     return true;
   }).catch(function(err){
     status = 'permesso negato o fotocamera occupata: ' + (err && err.name ? err.name : 'errore');
@@ -86,13 +102,23 @@ export function stopPresence(){
 
 export function armSentinel(){
   armed = true;
+  writeArmed({ at: Date.now() });
   keepStorage();
   pruneOld();
   status = 'sentinella armata';
 }
 
+// Vero quando la sentinella era armata prima di un riavvio. Serve a dirlo
+// a chi guarda lo schermo, invece di lasciarlo credere che sia tutto come
+// l ha lasciato.
+export function armedSince(){
+  var saved = readArmed();
+  return saved ? saved.at : null;
+}
+
 export function disarmSentinel(){
   armed = false;
+  writeArmed(null);
   burstUntil = 0;
   currentEvent = null;
   status = stream ? 'attiva' : 'ferma';

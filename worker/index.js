@@ -28,17 +28,38 @@ function json(body, status){
   });
 }
 
+function confrontoSicuro(a, b){
+  if (a.length !== b.length) return false;
+  var diff = 0;
+  for (var i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
     var url = new URL(request.url);
 
-    // Il token e condiviso fra i due tablet e non da accesso a nulla di
-    // esterno: protegge solo questo documento.
-    if (request.headers.get('X-Casa-Token') !== env.CASA_TOKEN) {
+    // Chi sbaglia il token troppe volte di fila viene messo in attesa.
+    // Senza questo, una parola corta si indovina provandole tutte.
+    var chiamante = request.headers.get('CF-Connecting-IP') || 'ignoto';
+    var chiaveTentativi = 'tentativi:' + chiamante;
+    var tentativi = parseInt((await env.CASA.get(chiaveTentativi)) || '0', 10);
+
+    if (tentativi >= 10) {
+      return json({ error: 'troppi tentativi, riprova fra un quarto d ora' }, 429);
+    }
+
+    // Il confronto non deve rivelare quanti caratteri erano giusti: per
+    // questo scorre sempre tutta la parola invece di fermarsi al primo
+    // carattere diverso.
+    if (!confrontoSicuro(request.headers.get('X-Casa-Token') || '', env.CASA_TOKEN || '')) {
+      await env.CASA.put(chiaveTentativi, String(tentativi + 1), { expirationTtl: 900 });
       return json({ error: 'token rifiutato' }, 401);
     }
+
+    if (tentativi > 0) await env.CASA.delete(chiaveTentativi);
 
     // ---------- notifiche ----------
 
@@ -94,6 +115,50 @@ export default {
     // cosa scrivere nella notifica.
     if (url.pathname === '/alarms') {
       return json(JSON.parse((await env.CASA.get('alarms')) || '[]'));
+    }
+
+    // ---------- chiavi delle luci ----------
+
+    // Le chiavi entrano e non escono piu: nessuna richiesta puo rileggerle.
+    // Servono solo al servizio stesso per parlare con Tuya.
+    if (url.pathname === '/secrets' && request.method === 'POST') {
+      var chiavi = await request.json();
+      if (!chiavi || !chiavi.tuyaId || !chiavi.tuyaSecret) {
+        return json({ error: 'chiavi incomplete' }, 400);
+      }
+      await env.CASA.put('secrets', JSON.stringify(chiavi));
+      return json({ ok: true });
+    }
+
+    if (url.pathname === '/secrets') {
+      return json({ error: 'le chiavi non si rileggono' }, 405);
+    }
+
+    // ---------- copia di sicurezza ----------
+
+    // Il tablet deposita qui una copia completa del suo stato. Serve a far
+    // ripartire un tablet nuovo, o uno che ha perso i dati, senza
+    // riconfigurare niente a mano.
+    if (url.pathname === '/backup') {
+      if (request.method === 'POST') {
+        var copia = await request.json();
+        if (!copia || !copia.data) return json({ error: 'copia non valida' }, 400);
+
+        // Teniamo la piu recente e la precedente, cosi una copia sbagliata
+        // non cancella l ultima buona.
+        var vecchia = await env.CASA.get('backup');
+        if (vecchia) await env.CASA.put('backup_prec', vecchia);
+        await env.CASA.put('backup', JSON.stringify(copia));
+        return json({ ok: true, at: copia.at });
+      }
+
+      if (request.method === 'GET') {
+        var quale = url.searchParams.get('quale') === 'precedente' ? 'backup_prec' : 'backup';
+        var salvata = await env.CASA.get(quale);
+        return salvata
+          ? new Response(salvata, { headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) })
+          : json(null);
+      }
     }
 
     // ---------- documento condiviso ----------

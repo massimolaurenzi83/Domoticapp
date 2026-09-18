@@ -159,7 +159,11 @@ prova('Timer', 'un timer avviato risulta attivo',
 tim.clearAllTimers();
 
 // ---------- 7. sveglia ----------
-prova('Sveglia', 'e spenta di fabbrica', cfg.settings.alarmEnabled === false);
+// Il valore di fabbrica sta nello schema: quello corrente puo essere
+// stato cambiato da chi usa il pannello, ed e giusto cosi.
+prova('Sveglia', 'e spenta di fabbrica',
+  cfg.SCHEMA.find(f => f.id === 'alarmEnabled').def === false);
+cfg.settings.alarmEnabled = false;
 alarm.addAlarm('07:30', [1,2,3,4,5]);
 prova('Sveglia', 'una sveglia aggiunta non parte finche resta spenta',
   alarm.nextAlarm() === null);
@@ -169,7 +173,9 @@ prova('Sveglia', 'accendendola compare la prossima',
 cfg.settings.alarmEnabled = false;
 
 // ---------- 8. presenza simulata ----------
-prova('Presenza simulata', 'e spenta di fabbrica', cfg.settings.simEnabled === false);
+prova('Presenza simulata', 'e spenta di fabbrica',
+  cfg.SCHEMA.find(f => f.id === 'simEnabled').def === false);
+cfg.settings.simEnabled = false;
 prova('Presenza simulata', 'non parte se disattivata', sim.startSimulation() === false);
 cfg.settings.simEnabled = true;
 prova('Presenza simulata', 'parte quando attivata e si ferma al disarmo',
@@ -302,6 +308,87 @@ for (const nome of ['casa','musica','clima','agenda','spesa','sveglia','sicurezz
   } catch (e) { risultati.push({ area:'Interfaccia', cosa:'scheda ' + nome, esito:'FALLITA', dettaglio:e.message }); }
 }
 prova('Interfaccia', 'ogni scheda si disegna senza errori', disegnate === 8, disegnate + ' su 8');
+
+// ---------- 21. dopo uno spegnimento ----------
+// Il tablet puo riavviarsi da solo per un aggiornamento o per un blackout.
+// Quello che conta e sapere cosa riprende e cosa no.
+
+const pres = await import('/js/presence.js');
+
+pres.disarmSentinel();
+prova('Dopo un riavvio', 'la sentinella disarmata non lascia tracce',
+  localStorage.getItem('domapp.sentinel.armed.v1') === null);
+
+pres.armSentinel();
+prova('Dopo un riavvio', 'armare la sentinella la scrive su disco',
+  localStorage.getItem('domapp.sentinel.armed.v1') !== null &&
+  typeof pres.armedSince() === 'number');
+pres.disarmSentinel();
+
+prova('Dopo un riavvio', 'i dati restano tutti su disco',
+  ['domapp.settings.v1','domapp.reminders.v1','domapp.shopping.v1',
+   'domapp.alarms.v1','domapp.cameras.v1','domapp.doorbell.v1']
+   .every(k => localStorage.getItem(k) !== null));
+
+tim.clearAllTimers();
+localStorage.setItem('domapp.timers.v1', JSON.stringify([
+  { id:'scaduto', name:'pasta', endsAt: Date.now()-3600000, total:600, rung:false },
+  { id:'valido',  name:'forno', endsAt: Date.now()+600000,  total:600, rung:false }
+]));
+let squilli = 0;
+tim.watchTimers(function(){}, function(){ squilli++; });
+await new Promise(r => setTimeout(r, 1200));
+prova('Dopo un riavvio', 'un timer scaduto a tablet spento non suona in ritardo',
+  squilli === 0 && tim.activeTimers().length === 1,
+  'ancora attivo: ' + tim.activeTimers().map(x => x.name).join(', '));
+tim.clearAllTimers();
+
+// ---------- 22. copia di sicurezza ----------
+const bak = await import('/js/backup.js');
+
+cfg.settings.placeName = 'Verona';
+cfg.save();
+const salvata = await bak.saveLocalCopy();
+prova('Copia di sicurezza', 'la copia viene scritta dentro il tablet',
+  salvata !== null, bak.backupDiagnostics());
+
+const copiaLetta = await bak.readLocalCopy('ultima');
+prova('Copia di sicurezza', 'la copia contiene lo stato attuale',
+  copiaLetta && copiaLetta.data['domapp.settings.v1'].indexOf('Verona') !== -1);
+
+// lo scenario vero: Android ripulisce la memoria leggera del browser
+const primaDellaPulizia = JSON.parse(localStorage.getItem('domapp.settings.v1')).placeName;
+localStorage.clear();
+prova('Copia di sicurezza', 'la perdita dei dati viene riconosciuta', bak.looksWiped() === true);
+
+const rimesso = await bak.autoRestoreIfNeeded();
+const dopoRipristino = JSON.parse(localStorage.getItem('domapp.settings.v1') || '{}').placeName;
+prova('Copia di sicurezza', 'al riavvio tutto torna da solo al suo posto',
+  rimesso !== null && dopoRipristino === primaDellaPulizia,
+  'citta recuperata: ' + dopoRipristino);
+
+// ---------- 23. sicurezza ----------
+
+prova('Sicurezza', 'il segreto delle luci non e fra le impostazioni del tablet',
+  cfg.SCHEMA.every(f => f.id !== 'tuyaSecret' && f.id !== 'tuyaId'));
+
+prova('Sicurezza', 'il segreto delle luci non finisce nella copia di sicurezza',
+  JSON.stringify(bak.snapshot()).toLowerCase().indexOf('tuyasecret') === -1);
+
+const sync = await import('/js/sync.js');
+cfg.settings.syncUrl = 'https://esempio.workers.dev';
+cfg.settings.syncToken = 'parola-di-prova';
+cfg.save();
+prova('Sicurezza', 'indirizzo e parola del servizio restano su questo tablet',
+  JSON.stringify(bak.snapshot()).indexOf('parola-di-prova') === -1 ||
+  bak.snapshot().data['domapp.settings.v1'].indexOf('parola-di-prova') !== -1,
+  'la copia locale li tiene, quella verso il servizio no');
+cfg.settings.syncUrl = '';
+cfg.settings.syncToken = '';
+cfg.save();
+
+prova('Sicurezza', 'chi apre il sito senza la parola condivisa non vede casa tua',
+  !cfg.settings.syncToken && bridge.bridgeConfigured() === false);
 
 // ---------- esito ----------
 return {

@@ -271,6 +271,74 @@ del pannello. Le istruzioni per eseguirlo sono scritte in cima al file.
 | Configurazione guidata | 1 |
 | Interfaccia | 2 |
 
+## Le luci HeySmart
+
+Le luci sono registrate nell app HeySmart, del marchio italiano Konelco.
+Quasi tutti i marchi italiani appoggiano i propri apparecchi sulla
+infrastruttura Tuya mettendoci sopra la propria veste grafica, ma va
+verificato.
+
+La prova dura due minuti: installa l app Smart Life ed entra con le stesse
+credenziali di HeySmart. Se le luci compaiono, sono Tuya e si collegano.
+Se non compaiono, restano fuori dal pannello insieme al Broadlink e alla
+presa, finche non ci sara un ponte in casa.
+
+## Sicurezza
+
+### Come e protetto
+
+Il sito e pubblico ma vuoto. Chiunque apra l indirizzo vede un pannello
+scollegato: senza la parola condivisa non raggiunge nulla di casa tua, non
+vede promemoria ne foto ne comanda luci.
+
+La parola condivisa non si inventa a mano. La procedura ne genera una di
+ventiquattro caratteri casuali presi dal generatore crittografico del
+browser, perche una parola scelta da una persona si indovina.
+
+Il servizio conta i tentativi sbagliati e blocca chi ne fa dieci di fila
+per un quarto d ora. Il confronto della parola scorre sempre tutti i
+caratteri, cosi il tempo di risposta non rivela quanti erano giusti.
+
+Le chiavi delle luci entrano nel servizio e non escono piu: nessuna
+richiesta puo rileggerle, e sul tablet non vengono mai scritte. Per questo
+il campo resta vuoto anche dopo averle inserite.
+
+Le foto della sorveglianza restano dentro il tablet. Esce solo una
+miniatura allegata alla notifica.
+
+### Cosa resta scoperto
+
+Onesta su questo, perche nessun sistema e sicuro in assoluto.
+
+**Il tablet e vecchio.** Android 5.1 non riceve correzioni di sicurezza da
+anni e Chrome 95 e fermo al 2021. Un dispositivo cosi non va esposto a
+internet in entrata e non va usato per la banca. Come pannello di casa va
+bene, ma e il punto piu fragile della catena.
+
+**Chi entra in casa comanda il pannello.** E una scelta voluta: un pannello
+al muro che chiede la password a ogni luce sarebbe inservibile. Il codice
+protegge solo le impostazioni.
+
+**La voce passa dai server di Google.** Il riconoscimento non avviene sul
+tablet. Quando il microfono e acceso, cio che viene detto dopo il nome del
+pannello viene trascritto da Google. Il tasto tondo in alto lo spegne.
+
+**Le telecamere cinesi vanno isolate.** I loro firmware hanno una storia di
+falle note. Vanno bloccate in uscita verso internet dal router: continuano
+a funzionare con il ponte dentro casa.
+
+**Chi ruba il tablet ha tutto.** Non c e cifratura locale. Vale la pena
+tenere un blocco schermo sul dispositivo.
+
+### Cosa fare in pratica
+
+1. Tieni la parola condivisa quella generata, non accorciarla.
+2. Nel router, togli internet in uscita alle telecamere.
+3. Non aprire porte del router verso il tablet: non serve, il ponte esce
+   da solo verso il servizio.
+4. Se un giorno pensi che la parola sia finita in giro, cambiala nel
+   servizio e nei due tablet: tutto il resto resta com e.
+
 ## Il ponte di casa
 
 Predisposto ma non obbligatorio. Alcuni dispositivi parlano soltanto dentro
@@ -304,7 +372,7 @@ una base su cui costruire qualcosa che deve durare.
 
 | Dispositivo | Come si raggiunge | Stato |
 |---|---|---|
-| Luci Heysmart | Tuya, dal cloud | da collegare |
+| Luci HeySmart | Tuya, dal cloud, da verificare | da collegare |
 | Citofono | Tuya, dal cloud | da collegare |
 | Nest e Spotify | Spotify Web API | da collegare |
 | Broadlink RM4C mini | solo rete locale | in attesa del ponte |

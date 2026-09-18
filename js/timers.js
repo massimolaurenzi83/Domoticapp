@@ -105,7 +105,21 @@ export function activeTimers(){
 export function watchTimers(changeCallback, expireCallback){
   onChange = changeCallback;
   onExpire = expireCallback;
+  dropStale();
   start();
+}
+
+// Un timer scaduto mentre il tablet era spento non ha piu senso: la pasta
+// e fredda da un pezzo. Viene chiuso in silenzio invece di suonare adesso.
+function dropStale(){
+  var list = loadTimers();
+  var soglia = Date.now() - 120000;
+  var changed = false;
+
+  for (var i = 0; i < list.length; i++) {
+    if (!list[i].rung && list[i].endsAt < soglia) { list[i].rung = true; changed = true; }
+  }
+  if (changed) persist(list);
 }
 
 function start(){

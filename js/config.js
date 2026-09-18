@@ -74,6 +74,10 @@ export var SCHEMA = [
     label:'Indirizzo del ponte di casa',
     hint:'Serve solo per Broadlink, presa D-Link e telecamere fisse. Lascialo vuoto finche non avrai un piccolo computer sempre acceso' },
 
+  { id:'tuyaConfigured', type:'bool', def:false, group:'Luci e citofono',
+    label:'Luci collegate',
+    hint:'Si accende da solo quando le chiavi sono state affidate al servizio. Le chiavi non vengono mai salvate sul tablet' },
+
   { id:'syncUrl', type:'text', def:'', group:'Sincronizzazione',
     label:'Indirizzo del servizio',
     hint:'Lascia vuoto per tenere tutto solo su questo tablet' },
