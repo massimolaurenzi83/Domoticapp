@@ -1,0 +1,179 @@
+// Fotocamera frontale: presenza di tutti i giorni e sentinella.
+//
+// Un unico flusso video serve due scopi. Nell uso quotidiano riconosce che
+// qualcuno si avvicina e sveglia la plancia. Quando la sentinella e armata
+// lo stesso movimento fa partire una raffica di scatti conservati dentro il
+// tablet e una notifica verso il telefono.
+//
+// Le immagini non escono mai dal tablet, tranne una miniatura allegata
+// alla notifica di allarme.
+
+import { settings } from './config.js';
+import { camOn } from './privacy.js';
+import { toGrey, compare, Streak, W, H } from './motion.js';
+import { saveShot, pruneOld, pruneForSpace, keepStorage } from './sentinel.js';
+
+var PERIOD = 1500;
+var SHOT_W = 480, SHOT_H = 360;
+
+var video = null, small = null, sctx = null, shot = null, shctx = null;
+var previous = null, stream = null, timer = null;
+var streak = null;
+var onMotion = null, onAlarm = null;
+
+var armed = false;
+var burstUntil = 0;
+var currentEvent = null;
+var lastReading = null;
+var status = 'non avviato';
+
+export function startPresence(callbacks){
+  var cb = callbacks || {};
+  onMotion = cb.onMotion;
+  onAlarm = cb.onAlarm;
+
+  if (!camOn()) { status = 'fotocamera spenta dall interruttore'; return Promise.resolve(false); }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    status = 'fotocamera non disponibile in questo browser';
+    return Promise.resolve(false);
+  }
+  if (!window.isSecureContext) { status = 'serve HTTPS per la fotocamera'; return Promise.resolve(false); }
+  if (stream) return Promise.resolve(true);
+
+  return navigator.mediaDevices.getUserMedia({
+    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+    audio: false
+  }).then(function(s){
+    stream = s;
+    video = document.createElement('video');
+    video.setAttribute('playsinline', '');
+    video.muted = true;
+    video.srcObject = s;
+    return video.play();
+  }).then(function(){
+    small = document.createElement('canvas');
+    small.width = W; small.height = H;
+    sctx = small.getContext('2d');
+
+    shot = document.createElement('canvas');
+    shot.width = SHOT_W; shot.height = SHOT_H;
+    shctx = shot.getContext('2d');
+
+    previous = null;
+    streak = new Streak(2);
+    timer = setInterval(sample, PERIOD);
+    status = 'attiva';
+    return true;
+  }).catch(function(err){
+    status = 'permesso negato o fotocamera occupata: ' + (err && err.name ? err.name : 'errore');
+    return false;
+  });
+}
+
+export function stopPresence(){
+  if (timer) { clearInterval(timer); timer = null; }
+  if (stream) {
+    var t = stream.getTracks();
+    for (var i = 0; i < t.length; i++) t[i].stop();
+    stream = null;
+  }
+  previous = null;
+  armed = false;
+  status = 'ferma';
+}
+
+// ---------- sentinella ----------
+
+export function armSentinel(){
+  armed = true;
+  keepStorage();
+  pruneOld();
+  status = 'sentinella armata';
+}
+
+export function disarmSentinel(){
+  armed = false;
+  burstUntil = 0;
+  currentEvent = null;
+  status = stream ? 'attiva' : 'ferma';
+}
+
+export function isArmed(){ return armed; }
+
+// ---------- ciclo ----------
+
+function sample(){
+  if (!camOn() || !video || video.readyState < 2) return;
+
+  sctx.drawImage(video, 0, 0, W, H);
+  var current = toGrey(sctx.getImageData(0, 0, W, H).data);
+
+  if (previous) {
+    var r = compare(current, previous, sensitivityToThreshold());
+    lastReading = r;
+
+    // Un cambiamento diffuso ovunque e luce, non una persona.
+    var real = !r.global && r.cells >= minCells();
+    var confirmed = streak.feed(real);
+
+    if (confirmed) {
+      if (onMotion) onMotion(r.strength);
+      if (armed) fireAlarm(r);
+    }
+  }
+
+  previous = current;
+
+  if (armed && Date.now() < burstUntil) captureShot();
+}
+
+// La sensibilita dell utente va da 2 a 60. Un valore basso deve rendere
+// piu sensibile il rilevamento, quindi abbassa la soglia per pixel.
+function sensitivityToThreshold(){
+  var s = parseInt(settings.presenceSensitivity, 10);
+  if (isNaN(s)) s = 14;
+  return Math.max(8, Math.min(60, Math.round(s * 1.6)));
+}
+
+function minCells(){
+  var s = parseInt(settings.presenceSensitivity, 10);
+  if (isNaN(s)) s = 14;
+  return s < 10 ? 1 : (s < 25 ? 2 : 3);
+}
+
+function fireAlarm(reading){
+  var now = Date.now();
+  var isNew = !currentEvent || now > burstUntil + 15000;
+
+  if (isNew) {
+    currentEvent = 'ev' + now;
+    pruneOld();
+    pruneForSpace();
+    captureShot(true, reading.strength);
+  }
+
+  burstUntil = now + Math.max(5, parseInt(settings.sentinelBurstSeconds, 10) || 20) * 1000;
+}
+
+function captureShot(notify, strength){
+  if (!shctx || !video) return;
+  shctx.drawImage(video, 0, 0, SHOT_W, SHOT_H);
+  var ev = currentEvent;
+  var force = strength || (lastReading ? lastReading.strength : 0);
+
+  if (!shot.toBlob) return;
+  shot.toBlob(function(blob){
+    if (!blob) return;
+    saveShot(blob, ev, force);
+    if (notify && onAlarm) onAlarm({ event: ev, at: Date.now(), strength: force, blob: blob });
+  }, 'image/jpeg', 0.72);
+}
+
+export function presenceDiagnostics(){
+  var line = 'Fotocamera: ' + status;
+  if (lastReading) {
+    line += ', celle mosse ' + lastReading.cells +
+            (lastReading.global ? ', variazione diffusa quindi ignorata' : '');
+  }
+  return line;
+}

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Casa</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-title" content="Casa">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="stage">
+
+  <div id="wallpaper"></div>
+  <div id="wall-shade"></div>
+
+  <section class="screen" id="screen-photos">
+    <div class="photo-layer" id="photo-a"></div>
+    <div class="photo-layer" id="photo-b"></div>
+    <div class="photo-veil"></div>
+    <div class="photo-info">
+      <div class="photo-clock" id="photo-clock">--:--</div>
+      <div class="photo-caption" id="photo-caption"></div>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-ambient">
+    <div class="ambient-main">
+      <div class="clock-big" id="clock-big">--:--</div>
+      <div class="clock-date" id="clock-date">&nbsp;</div>
+    </div>
+    <div class="ambient-side">
+      <div class="weather-card" id="weather-card">
+        <div class="weather-temp" id="weather-temp">--&deg;</div>
+        <div class="weather-desc" id="weather-desc">meteo non disponibile</div>
+        <div class="weather-place" id="weather-place">&nbsp;</div>
+      </div>
+      <div class="now-playing" id="now-playing" hidden>
+        <div class="np-art" id="np-art"></div>
+        <div class="np-text">
+          <div class="np-title" id="np-title"></div>
+          <div class="np-where" id="np-where"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-control">
+    <header class="control-head">
+      <div class="control-clock" id="control-clock">--:--</div>
+      <nav class="tabs" id="tabs">
+        <button class="tab is-active" data-tab="casa" type="button">Casa</button>
+        <button class="tab" data-tab="musica" type="button">Musica</button>
+        <button class="tab" data-tab="clima" type="button">Clima</button>
+        <button class="tab" data-tab="agenda" type="button">Agenda</button>
+        <button class="tab" data-tab="sicurezza" type="button">Sicurezza</button>
+      </nav>
+      <button class="icon-btn" id="btn-privacy" type="button" aria-label="Microfono e fotocamera">&#9673;</button>
+      <button class="icon-btn" id="btn-settings" type="button" aria-label="Impostazioni">&#9881;</button>
+    </header>
+    <div class="control-body" id="control-body"></div>
+  </section>
+
+</div>
+
+<div id="settings" class="sheet" hidden>
+  <div class="sheet-inner">
+    <h2>Impostazioni</h2>
+    <div class="set-grid" id="set-grid"></div>
+    <div class="sheet-actions">
+      <button class="btn" id="btn-cam-test" type="button">Prova fotocamera</button>
+      <button class="btn" id="btn-push" type="button">Attiva notifiche</button>
+      <button class="btn" id="btn-close-settings" type="button">Chiudi</button>
+    </div>
+    <p class="diag" id="diag"></p>
+  </div>
+</div>
+
+<div id="mic-dot" hidden><span></span></div>
+
+<div id="voice-bar" hidden>
+  <div class="vb-inner">
+    <div class="vb-heard" id="vb-heard"></div>
+    <div class="vb-reply" id="vb-reply"></div>
+  </div>
+</div>
+
+<div id="privacy" class="sheet" hidden>
+  <div class="sheet-inner" style="width:520px;">
+    <h2>Microfono e fotocamera</h2>
+    <div class="set-grid">
+      <div class="set-row">
+        <div class="set-label">
+          <div>Microfono</div>
+          <div class="set-hint">Ascolto continuo e comandi vocali</div>
+        </div>
+        <button class="switch" id="sw-mic" type="button" aria-label="Microfono"></button>
+      </div>
+      <div class="set-row">
+        <div class="set-label">
+          <div>Fotocamera</div>
+          <div class="set-hint">Rilevamento presenza e ripresa da fuori casa</div>
+        </div>
+        <button class="switch" id="sw-cam" type="button" aria-label="Fotocamera"></button>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn" id="btn-silence" type="button">Spegni tutto</button>
+      <button class="btn" id="btn-close-privacy" type="button">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<div id="bridge-conf" class="sheet" hidden>
+  <div class="sheet-inner">
+    <h2>File di configurazione per il ponte</h2>
+    <p class="set-hint">Copialo in go2rtc.yaml sul Raspberry Pi accanto all eseguibile, poi riavvia il servizio. Le password compaiono solo qui e non restano sul tablet.</p>
+    <textarea id="bridge-text" readonly rows="14"></textarea>
+    <div class="sheet-actions">
+      <button class="btn" id="btn-copy-bridge" type="button">Copia</button>
+      <button class="btn" id="btn-close-bridge" type="button">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<div id="doorbell" class="takeover" hidden>
+  <div class="takeover-inner">
+    <div class="takeover-title">Citofono</div>
+    <div class="takeover-sub">Qualcuno sta suonando</div>
+    <div class="takeover-actions">
+      <button class="btn btn-big btn-open" id="btn-door-open" type="button">Apri</button>
+      <button class="btn btn-big" id="btn-door-dismiss" type="button">Ignora</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
