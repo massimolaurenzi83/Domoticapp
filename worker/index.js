@@ -167,7 +167,7 @@ export default {
 
     if (request.method === 'GET') {
       var stored = await env.CASA.get('state');
-      return json(stored ? JSON.parse(stored) : { settings: {}, stamps: {}, reminders: [], messages: [] });
+      return json(stored ? JSON.parse(stored) : { settings: {}, stamps: {}, reminders: [], messages: [], sentinel: null });
     }
 
     if (request.method === 'PUT') {
@@ -176,7 +176,7 @@ export default {
       catch (e) { return json({ error: 'corpo non valido' }, 400); }
 
       var previous = await env.CASA.get('state');
-      var base = previous ? JSON.parse(previous) : { settings: {}, stamps: {}, reminders: [], messages: [] };
+      var base = previous ? JSON.parse(previous) : { settings: {}, stamps: {}, reminders: [], messages: [], sentinel: null };
       var merged = merge(base, incoming);
 
       await env.CASA.put('state', JSON.stringify(merged));
@@ -194,7 +194,8 @@ function merge(base, incoming){
     settings: Object.assign({}, base.settings),
     stamps: Object.assign({}, base.stamps),
     reminders: [],
-    messages: []
+    messages: [],
+    sentinel: base.sentinel || null
   };
 
   var theirs = incoming.stamps || {};
@@ -235,6 +236,27 @@ function merge(base, incoming){
   }
   for (var mid in msgById) out.messages.push(msgById[mid]);
   out.messages.sort(function(x, y){ return x.at - y.at; });
+
+  // Della sentinella tiene solo la decisione piu recente. Il confronto usa
+  // l ora del servizio, non quella dei dispositivi: gli orologi di tablet e
+  // telefoni si sfasano, e un dispositivo avanti di dieci minuti
+  // scarterebbe per sempre i comandi degli altri.
+  var qui = base.sentinel;
+  var la = incoming.sentinel;
+
+  if (la) {
+    var nuova = {
+      armed: !!la.armed,
+      at: la.at || 0,
+      from: la.from || 'sconosciuto',
+      serverAt: Date.now()
+    };
+    // Arriva dallo stesso dispositivo che l aveva gia mandata: non e una
+    // decisione nuova, e solo la ripetizione della stessa.
+    var stessa = qui && qui.armed === nuova.armed && qui.at === nuova.at;
+    if (!qui || (!stessa && nuova.at !== qui.at)) out.sentinel = nuova;
+    else out.sentinel = qui;
+  }
 
   return out;
 }

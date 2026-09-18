@@ -100,9 +100,12 @@ export function stopPresence(){
 
 // ---------- sentinella ----------
 
-export function armSentinel(){
+// origine dice chi ha deciso: 'locale' se qualcuno ha toccato questo
+// pannello, 'remoto' se la decisione arriva dall altro dispositivo.
+export function armSentinel(origine){
   armed = true;
-  writeArmed({ at: Date.now() });
+  writeArmed({ at: Date.now(), from: origine || 'locale' });
+  writeDecision(true, origine || 'locale');
   keepStorage();
   pruneOld();
   status = 'sentinella armata';
@@ -111,14 +114,64 @@ export function armSentinel(){
 // Vero quando la sentinella era armata prima di un riavvio. Serve a dirlo
 // a chi guarda lo schermo, invece di lasciarlo credere che sia tutto come
 // l ha lasciato.
+// L ultima decisione presa, con il suo momento. Serve al confronto con
+// quella che arriva dall altro dispositivo.
+var DECISION_KEY = 'domapp.sentinel.decision.v1';
+
+function writeDecision(value, from, serverAt){
+  try {
+    localStorage.setItem(DECISION_KEY, JSON.stringify({
+      armed: !!value,
+      at: Date.now(),
+      from: from || 'locale',
+      serverAt: serverAt || null
+    }));
+  } catch (e) {}
+}
+
+export function lastDecision(){
+  try { return JSON.parse(localStorage.getItem(DECISION_KEY) || 'null'); } catch (e) { return null; }
+}
+
+// Applica una decisione arrivata dall altro dispositivo, ma solo se e piu
+// recente della nostra. Restituisce true se qualcosa e cambiato.
+export function applyRemoteDecision(remote){
+  if (!remote || typeof remote.armed !== 'boolean') return false;
+
+  var mine = lastDecision();
+
+  // Se la decisione che arriva e la nostra stessa, tornata indietro dal
+  // servizio, non c e niente da fare.
+  if (mine && mine.at === remote.at && mine.armed === remote.armed) return false;
+
+  // Quando il servizio ha timbrato entrambe, il confronto usa il suo
+  // orologio. Altrimenti ripiega su quello dei dispositivi.
+  if (mine && mine.serverAt && remote.serverAt) {
+    if (mine.serverAt >= remote.serverAt) return false;
+  } else if (mine && (mine.at || 0) > (remote.at || 0)) {
+    return false;
+  }
+  if (!!remote.armed === armed) {
+    // Stessa posizione, ma la marcatura del servizio va conservata.
+    writeDecision(remote.armed, remote.from || 'remoto', remote.serverAt);
+    return false;
+  }
+
+  if (remote.armed) armSentinel('remoto');
+  else disarmSentinel('remoto');
+  writeDecision(remote.armed, remote.from || 'remoto', remote.serverAt);
+  return true;
+}
+
 export function armedSince(){
   var saved = readArmed();
   return saved ? saved.at : null;
 }
 
-export function disarmSentinel(){
+export function disarmSentinel(origine){
   armed = false;
   writeArmed(null);
+  writeDecision(false, origine || 'locale');
   burstUntil = 0;
   currentEvent = null;
   status = stream ? 'attiva' : 'ferma';

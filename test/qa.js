@@ -390,6 +390,33 @@ cfg.save();
 prova('Sicurezza', 'chi apre il sito senza la parola condivisa non vede casa tua',
   !cfg.settings.syncToken && bridge.bridgeConfigured() === false);
 
+// ---------- 24. comando a distanza ----------
+// Il telefono deve poter armare la sentinella mentre sei gia partito.
+// L ordine delle decisioni lo decide il servizio, perche gli orologi dei
+// dispositivi si sfasano.
+
+localStorage.removeItem('domapp.sentinel.decision.v1');
+pres.disarmSentinel();
+
+const armatoDaFuori = pres.applyRemoteDecision(
+  { armed: true, at: Date.now() + 1, from: 'telefono', serverAt: 1000 });
+prova('Comando a distanza', 'il telefono puo armare la sentinella',
+  armatoDaFuori === true && pres.isArmed() === true);
+
+const vecchiaScartata = pres.applyRemoteDecision(
+  { armed: false, at: Date.now() + 2, from: 'telefono', serverAt: 500 });
+prova('Comando a distanza', 'una decisione piu vecchia non annulla quella nuova',
+  vecchiaScartata === false && pres.isArmed() === true);
+
+const disarmatoDaFuori = pres.applyRemoteDecision(
+  { armed: false, at: Date.now() + 3, from: 'telefono', serverAt: 2000 });
+prova('Comando a distanza', 'il telefono puo anche disarmarla',
+  disarmatoDaFuori === true && pres.isArmed() === false);
+
+const ripetizione = pres.applyRemoteDecision(pres.lastDecision());
+prova('Comando a distanza', 'la nostra stessa decisione di ritorno non fa nulla',
+  ripetizione === false);
+
 // ---------- esito ----------
 return {
   totale: passati + falliti,

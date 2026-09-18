@@ -10,6 +10,7 @@
 
 import { settings, save as saveLocal } from './config.js';
 import { receive, mergeForSync, pruneQueue } from './intercom.js';
+import { lastDecision, applyRemoteDecision } from './presence.js';
 
 var CONF_KEY = 'domapp.sync.v1';
 var STAMP_KEY = 'domapp.stamps.v1';
@@ -91,7 +92,13 @@ function push(){
   var shared = {};
   for (var k in settings) if (!LOCAL_ONLY[k]) shared[k] = settings[k];
   pruneQueue();
-  var body = { settings: shared, stamps: stamps(), reminders: readReminders(), messages: mergeForSync(lastRemoteMessages) };
+  var body = {
+    settings: shared,
+    stamps: stamps(),
+    reminders: readReminders(),
+    messages: mergeForSync(lastRemoteMessages),
+    sentinel: lastDecision()
+  };
   return fetch(conf.url + '/state', {
     method: 'PUT', headers: headers(), body: JSON.stringify(body)
   }).then(function(r){
@@ -126,6 +133,9 @@ function merge(remote){
 
   lastRemoteMessages = remote.messages || [];
   if (receive(lastRemoteMessages) > 0) changed = true;
+
+  // La sentinella si arma e si disarma da qualunque dispositivo.
+  if (applyRemoteDecision(remote.sentinel)) changed = true;
 
   return changed;
 }

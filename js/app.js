@@ -21,7 +21,7 @@ import { setupDone, startSetup, resetSetup } from './setup.js';
 import { startBackups, saveLocalCopy, pushToService, downloadFile, readFile,
          restore, backupDiagnostics, pullFromService } from './backup.js';
 import { bridgeDiagnostics, checkBridge } from './bridge.js';
-import { startSimulation, stopSimulation, simulationDiagnostics, noteHabit } from './presence-sim.js';
+import { startSimulation, stopSimulation, simulationDiagnostics, noteHabit, simulationRunning } from './presence-sim.js';
 import { startAlarms, alarmDiagnostics } from './alarm-clock.js';
 import { watchTimers, activeTimers, remainingText, addTimer, spokenDuration } from './timers.js';
 import { registerWorker, enableNotifications, notificationsActive, pushBlockedReason, isIOS, isStandalone } from './push.js';
@@ -309,6 +309,11 @@ function boot(){
     renderCurrentTab();
     applyWallpaper();
     refreshWeather();
+
+    // La sentinella puo essere stata armata dal telefono: qui il pannello
+    // se ne accorge e si adegua.
+    if (isArmed() && !simulationRunning()) startSimulation();
+    if (!isArmed() && simulationRunning()) stopSimulation();
   });
 }
 

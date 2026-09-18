@@ -283,6 +283,42 @@ credenziali di HeySmart. Se le luci compaiono, sono Tuya e si collegano.
 Se non compaiono, restano fuori dal pannello insieme al Broadlink e alla
 presa, finche non ci sara un ponte in casa.
 
+## Usarlo da fuori casa
+
+Non c e una applicazione da installare e comandare a distanza. C e un solo
+indirizzo, e lo apri da dove vuoi: dal tablet al muro, dal secondo tablet,
+dal telefono in aeroporto. Ogni dispositivo tiene la sua copia e le copie
+si allineano attraverso il servizio.
+
+Questo vuol dire che **senza il servizio configurato ogni dispositivo resta
+isolato**. Il pannello funziona lo stesso, ma quello che scrivi sul telefono
+non arriva al tablet di casa. Il servizio non e un dettaglio rimandabile: e
+esattamente cio che rende possibile il remoto.
+
+Con il servizio attivo, da fuori casa puoi:
+
+| Cosa | Come |
+|---|---|
+| Vedere e aggiungere promemoria | scheda Agenda |
+| Aggiungere cose alla spesa | scheda Spesa |
+| Mandare un messaggio a chi e in casa | casella in Agenda, il pannello lo legge ad alta voce |
+| Armare o disarmare la sentinella | scheda Sicurezza, anche se sei gia partito |
+| Ricevere gli allarmi | notifiche sul telefono |
+| Comandare luci e citofono | schede Casa e Musica, quando Tuya sara collegato |
+
+Restano fuori le telecamere fisse, il Broadlink e la presa: quelli parlano
+solo dentro casa e aspettano il ponte.
+
+### Chi comanda quando i comandi si accavallano
+
+La sentinella puo essere armata dal telefono e disarmata dal tablet quasi
+nello stesso momento. Vince sempre la decisione piu recente, e l ordine lo
+stabilisce il servizio con il proprio orologio.
+
+Il motivo e pratico: gli orologi di tablet e telefoni si sfasano di minuti.
+Se il confronto usasse l ora dei dispositivi, un tablet avanti di dieci
+minuti scarterebbe per sempre i comandi che arrivano dal telefono.
+
 ## Sicurezza
 
 ### Come e protetto
