@@ -90,6 +90,20 @@ export var SCHEMA = [
   { id:'intercomQuietEnd', type:'time', def:'07:30', group:'Interfono',
     label:'Silenzio fino alle', hint:'' },
 
+  { id:'simEnabled', type:'bool', def:false, group:'Presenza simulata',
+    label:'Simula la presenza quando sei via',
+    hint:'Si accende insieme alla sentinella e si spegne quando disarmi. A casa non fa nulla' },
+  { id:'simJitterMinutes', type:'num', def:35, min:0, max:120, group:'Presenza simulata',
+    label:'Variazione degli orari',
+    hint:'Di quanti minuti spostare ogni accensione, in piu o in meno. Zero rende tutto prevedibile' },
+
+  { id:'alarmEnabled', type:'bool', def:false, group:'Sveglia',
+    label:'Sveglia con luce e musica',
+    hint:'Spenta di fabbrica. Accendila e poi imposta gli orari nella scheda Sveglia' },
+  { id:'alarmSunriseMinutes', type:'num', def:20, min:0, max:60, group:'Sveglia',
+    label:'Minuti di alba',
+    hint:'Quanto prima accendere la luce. La musica parte sempre all orario esatto' },
+
   { id:'sentinelKeepDays', type:'num', def:14, min:1, max:365, group:'Sentinella',
     label:'Giorni di conservazione',
     hint:'Gli scatti piu vecchi vengono cancellati da soli' },

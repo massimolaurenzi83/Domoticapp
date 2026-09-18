@@ -6,6 +6,8 @@ import { wallpaperList, setWallpaper } from './wallpaper.js';
 import { loadReminders, removeReminder, describeWhen } from './reminders.js';
 import { renderSecurity } from './security-view.js';
 import { sendMessage } from './intercom.js';
+import { renderShopping, renderAlarms } from './extra-views.js';
+import { renderRadio } from './radio-view.js';
 import { profiles, profileName } from './profiles.js';
 
 var GIORNI = ['domenica','lunedi','martedi','mercoledi','giovedi','venerdi','sabato'];
@@ -29,6 +31,9 @@ export function renderTab(tab, onChange){
   var body = document.getElementById('control-body');
   if (tab === 'agenda') { renderAgenda(body, onChange); return; }
   if (tab === 'sicurezza') { renderSecurity(body); return; }
+  if (tab === 'spesa') { renderShopping(body); return; }
+  if (tab === 'sveglia') { renderAlarms(body); return; }
+  if (tab === 'radio') { renderRadio(body); return; }
   var grid = document.createElement('div');
   grid.className = 'tile-grid';
 

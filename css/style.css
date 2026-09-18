@@ -195,3 +195,64 @@ html,body{
   font-family:var(--font-mono,monospace);font-size:13px;line-height:1.55;
   padding:14px;border-radius:10px;resize:vertical;
 }
+
+#timer-box{background:var(--card);border-radius:var(--radius);padding:16px;}
+.timer-row{display:flex;align-items:baseline;gap:10px;padding:4px 0;}
+.timer-left{font-size:30px;font-weight:200;font-variant-numeric:tabular-nums;}
+.timer-name{font-size:14px;color:var(--fg-dim);}
+.tab{white-space:nowrap;}
+.tabs{overflow-x:auto;}
+
+/* ---------- prima configurazione ---------- */
+#setup{
+  position:absolute;top:0;left:0;right:0;bottom:0;z-index:40;
+  background:var(--bg);padding:40px 28px;overflow-y:auto;
+}
+#setup-body{width:100%;max-width:760px;margin:0 auto;}
+.setup-card{background:var(--card);border-radius:20px;padding:40px 44px;}
+.setup-progress{font-size:13px;color:var(--fg-faint);letter-spacing:1px;text-transform:uppercase;}
+.setup-card h2{font-size:34px;font-weight:300;margin:10px 0 18px;}
+.setup-text{font-size:19px;line-height:1.55;color:#c8ccd2;margin:0 0 16px;}
+.setup-note{font-size:15px;color:var(--fg-dim);margin-top:10px;line-height:1.5;}
+
+.setup-choice{display:flex;gap:16px;margin-top:26px;flex-wrap:wrap;}
+.setup-big{
+  flex:1;min-width:230px;background:var(--card-hi);border:0;border-radius:16px;
+  padding:28px;color:var(--fg);font-family:inherit;text-align:left;
+  display:flex;flex-direction:column;gap:8px;
+}
+.setup-big strong{font-size:23px;font-weight:400;}
+.setup-big span{font-size:16px;color:var(--fg-dim);}
+
+.setup-field{display:block;margin:18px 0;}
+.setup-field span{display:block;font-size:16px;color:var(--fg-dim);margin-bottom:8px;}
+.setup-field input{
+  width:100%;background:var(--card-hi);border:1px solid var(--line);color:var(--fg);
+  font-family:inherit;font-size:20px;padding:17px;border-radius:12px;
+}
+.setup-times{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;}
+
+.setup-where{
+  background:#11161c;border-left:3px solid var(--accent);border-radius:0;
+  padding:18px 22px;margin:20px 0;
+}
+.setup-where-title{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);}
+.setup-where ol{margin:12px 0 0;padding-left:22px;}
+.setup-where li{font-size:17px;line-height:1.6;color:#c8ccd2;margin-bottom:9px;}
+
+.setup-perms{margin:22px 0;}
+.setup-perm{
+  display:flex;align-items:center;gap:20px;padding:18px 0;
+  border-bottom:1px solid var(--line);font-size:19px;
+}
+.setup-perm > div{flex:1;}
+
+.setup-handoff{
+  background:#11161c;border-radius:12px;padding:22px;margin:20px 0;
+  display:flex;flex-direction:column;gap:18px;
+}
+.setup-value{font-family:var(--font-mono,monospace);font-size:19px;color:#cfe1f5;word-break:break-all;margin-top:5px;}
+
+.setup-buttons{display:flex;gap:12px;margin-top:30px;align-items:center;}
+.setup-buttons .btn{font-size:18px;padding:17px 30px;}
+.btn-go{background:#1d3a55;margin-left:auto;}

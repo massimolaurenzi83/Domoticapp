@@ -17,12 +17,16 @@ import { buildSettings, renderTab, timeString, dateString, agendaHooks, currentP
 import { parseWhen, addReminder, describeWhen } from './reminders.js';
 import { pinOk, pinRequired } from './profiles.js';
 import { securityHooks } from './security-view.js';
+import { setupDone, startSetup, resetSetup } from './setup.js';
 import { bridgeDiagnostics, checkBridge } from './bridge.js';
+import { startSimulation, stopSimulation, simulationDiagnostics, noteHabit } from './presence-sim.js';
+import { startAlarms, alarmDiagnostics } from './alarm-clock.js';
+import { watchTimers, activeTimers, remainingText, addTimer, spokenDuration } from './timers.js';
 import { registerWorker, enableNotifications, notificationsActive, pushBlockedReason, isIOS, isStandalone } from './push.js';
 import { micOn, camOn, setMic, setCam, silenceAll, onPrivacyChange, privacySummary } from './privacy.js';
 import { setSyncConfig, startSync, syncConfigured, syncStatus, touch } from './sync.js';
 import { setIntercomHandler } from './intercom.js';
-import { commandLog } from './devices.js';
+import { commandLog, onToggle } from './devices.js';
 import { loadWallpapers, applyWallpaper } from './wallpaper.js';
 import { startVoice, stopVoice, say, voiceAvailable, voiceDiagnostics, captureNext } from './voice.js';
 import { runCommand } from './intents.js';
@@ -99,6 +103,7 @@ function tick(){
   document.getElementById('clock-date').textContent = dateString(now);
 
   applyScheduledBrightness(isAwake() || settingsOpen);
+  paintTimers();
 
   if (!isAwake() && !settingsOpen && currentScreen === 'control') show(idleScreen());
   if (!isAwake() && !settingsOpen) {
@@ -148,6 +153,8 @@ function updateDiagnostics(){
     presenceDiagnostics(),
     voiceDiagnostics(),
     bridgeDiagnostics(),
+    simulationDiagnostics(),
+    alarmDiagnostics(),
     'Allineamento: ' + (syncConfigured() ? syncStatus() : 'solo questo tablet'),
     'Notifiche: ' + (notificationsActive() ? 'attive' : (pushBlockedReason() || 'da attivare')),
     'Telefono: ' + (isIOS() ? ('iPhone, ' + (isStandalone() ? 'aperta dalla schermata Home' : 'aperta dentro il browser')) : 'Android o altro'),
@@ -189,8 +196,8 @@ function boot(){
   });
 
   securityHooks.isArmed = isArmed;
-  securityHooks.onArm = function(){ armSentinel(); bumpAwake(); };
-  securityHooks.onDisarm = function(){ disarmSentinel(); bumpAwake(); };
+  securityHooks.onArm = function(){ armSentinel(); startSimulation(); bumpAwake(); };
+  securityHooks.onDisarm = function(){ disarmSentinel(); stopSimulation(); bumpAwake(); };
 
   document.getElementById('btn-close-bridge').addEventListener('click', function(){
     document.getElementById('bridge-conf').hidden = true;
@@ -212,6 +219,11 @@ function boot(){
     else showVoiceBar('', 'Codice errato.');
   });
   document.getElementById('btn-close-settings').addEventListener('click', closeSettings);
+  document.getElementById('btn-redo-setup').addEventListener('click', function(){
+    closeSettings();
+    resetSetup();
+    startSetup(function(){ renderCurrentTab(); refreshWeather(); });
+  });
   document.getElementById('btn-push').addEventListener('click', function(){
     var btn = document.getElementById('btn-push');
     btn.textContent = 'Attendo...';
@@ -238,6 +250,15 @@ function boot(){
     wake(true);
   });
 
+  if (!setupDone()) {
+    startSetup(function(){
+      refreshWeather();
+      renderCurrentTab();
+      setupVoice();
+      if (settings.presenceEnabled) startCamera();
+    });
+  }
+
   loadWallpapers();
   loadPhotos().then(function(){ show(idleScreen()); });
   refreshWeather();
@@ -249,8 +270,22 @@ function boot(){
   if (settings.presenceEnabled) startCamera();
   setupVoice();
 
+  onToggle(noteHabit);
+
   registerWorker();
   checkBridge();
+
+  startAlarms(function(alarm, progress){
+    if (progress >= 1) { bumpAwake(); show('ambient'); }
+  });
+
+  watchTimers(paintTimers, function(t){
+    bumpAwake();
+    show('ambient');
+    var what = t.name ? 'Il timer ' + t.name : 'Il timer';
+    showVoiceBar('', what + ' e finito.');
+    if (settings.voiceReply) say(what + ' e finito.');
+  });
 
   setSyncConfig(settings.syncUrl, settings.syncToken);
   startSync(function(){
@@ -390,6 +425,32 @@ function renderCurrentTab(){
       return;
     }
   }
+}
+
+// Mostra i timer in corso sulla schermata a riposo.
+function paintTimers(){
+  var box = document.getElementById('timer-box');
+  var list = activeTimers();
+  if (!list.length) { box.hidden = true; box.innerHTML = ''; return; }
+
+  box.innerHTML = '';
+  for (var i = 0; i < list.length; i++) {
+    var row = document.createElement('div');
+    row.className = 'timer-row';
+
+    var left = document.createElement('div');
+    left.className = 'timer-left';
+    left.textContent = remainingText(list[i]);
+
+    var name = document.createElement('div');
+    name.className = 'timer-name';
+    name.textContent = list[i].name || 'timer';
+
+    row.appendChild(left);
+    row.appendChild(name);
+    box.appendChild(row);
+  }
+  box.hidden = false;
 }
 
 function bumpAwake(){ awakeUntil = Date.now() + settings.wakeSeconds * 1000; }

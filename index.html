@@ -41,6 +41,7 @@
         <div class="weather-desc" id="weather-desc">meteo non disponibile</div>
         <div class="weather-place" id="weather-place">&nbsp;</div>
       </div>
+      <div id="timer-box" hidden></div>
       <div class="now-playing" id="now-playing" hidden>
         <div class="np-art" id="np-art"></div>
         <div class="np-text">
@@ -59,6 +60,9 @@
         <button class="tab" data-tab="musica" type="button">Musica</button>
         <button class="tab" data-tab="clima" type="button">Clima</button>
         <button class="tab" data-tab="agenda" type="button">Agenda</button>
+        <button class="tab" data-tab="radio" type="button">Radio</button>
+        <button class="tab" data-tab="spesa" type="button">Spesa</button>
+        <button class="tab" data-tab="sveglia" type="button">Sveglia</button>
         <button class="tab" data-tab="sicurezza" type="button">Sicurezza</button>
       </nav>
       <button class="icon-btn" id="btn-privacy" type="button" aria-label="Microfono e fotocamera">&#9673;</button>
@@ -76,6 +80,7 @@
     <div class="sheet-actions">
       <button class="btn" id="btn-cam-test" type="button">Prova fotocamera</button>
       <button class="btn" id="btn-push" type="button">Attiva notifiche</button>
+      <button class="btn" id="btn-redo-setup" type="button">Rifai la configurazione</button>
       <button class="btn" id="btn-close-settings" type="button">Chiudi</button>
     </div>
     <p class="diag" id="diag"></p>
@@ -89,6 +94,10 @@
     <div class="vb-heard" id="vb-heard"></div>
     <div class="vb-reply" id="vb-reply"></div>
   </div>
+</div>
+
+<div id="setup" hidden>
+  <div id="setup-body"></div>
 </div>
 
 <div id="privacy" class="sheet" hidden>

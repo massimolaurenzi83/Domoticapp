@@ -35,6 +35,12 @@ export var speakers = [
   { id:'nest-bagno',    name:'Bagno',    room:'musica', glyph:'\u266A', on:false }
 ];
 
+// Chi vuole sapere delle accensioni fatte da una persona si aggancia qui.
+// Serve a tenere devices.js indipendente dal resto.
+var toggleWatchers = [];
+
+export function onToggle(fn){ toggleWatchers.push(fn); }
+
 var log = [];
 
 export function findDevice(id){
@@ -43,10 +49,13 @@ export function findDevice(id){
   return null;
 }
 
-export function toggle(id){
+export function toggle(id, byPerson){
   var d = findDevice(id);
   if (!d) return null;
   d.on = !d.on;
+  if (byPerson !== false) {
+    for (var w = 0; w < toggleWatchers.length; w++) toggleWatchers[w](id, d.on);
+  }
   send(d.via, d.id, d.on ? 'accendi' : 'spegni');
   return d;
 }

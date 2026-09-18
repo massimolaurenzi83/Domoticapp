@@ -4,6 +4,8 @@
 // e in quale stanza, e restituisce la frase di risposta da pronunciare.
 
 import { devices, speakers, findDevice, toggle, runScene } from './devices.js';
+import { addItem, pendingCount } from './shopping.js';
+import { parseTimer, addTimer, spokenDuration } from './timers.js';
 
 var STANZE = {
   'soggiorno':'soggiorno', 'salotto':'soggiorno', 'sala':'soggiorno',
@@ -44,6 +46,26 @@ export function runCommand(text){
   var room = roomIn(text);
   var wantsOn = has(text, ['accendi', 'accendere', 'attiva', 'apri la luce']);
   var wantsOff = has(text, ['spegni', 'spegnere', 'disattiva']);
+
+  // Il timer va cercato prima della spesa: "aggiungi un timer" non e spesa.
+  if (has(text, ['timer', 'conta alla rovescia', 'cronometro'])) {
+    var t = parseTimer(text);
+    if (!t) return { reply: 'Per quanto tempo?', screen: 'ambient' };
+    addTimer(t.seconds, t.name);
+    return { reply: 'Timer di ' + spokenDuration(t.seconds) + ' avviato.', screen: 'ambient' };
+  }
+
+  if (has(text, ['lista della spesa', 'alla spesa', 'nella lista', 'sulla lista', 'da comprare'])) {
+    if (has(text, ['cosa', 'leggimi', 'quanti', 'mostrami', 'fammi vedere'])) {
+      var n = pendingCount();
+      return {
+        reply: n ? 'Sulla lista ci sono ' + n + (n === 1 ? ' cosa.' : ' cose.') : 'La lista e vuota.',
+        screen: 'control', tab: 'spesa'
+      };
+    }
+    var added = addItem(text);
+    return { reply: 'Aggiunto alla spesa.', screen: 'control', tab: 'spesa', refresh: true };
+  }
 
   if (has(text, ['ricordami', 'promemoria', 'segna', 'annota', 'appunta', 'metti in agenda'])) {
     return { reply: null, screen: 'control', tab: 'agenda', reminder: text };

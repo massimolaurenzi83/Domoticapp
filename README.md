@@ -191,6 +191,86 @@ vuoti tutto resta su questo tablet.
 
 Le istruzioni per pubblicare il servizio sono in cima a `worker/index.js`.
 
+## Prima configurazione
+
+Alla prima apertura parte una procedura guidata. Sul tablet principale sono
+quattro domande: dove sei, chi vive in casa, come si chiama il tablet e
+quali permessi concedere. La citta si cerca per nome e le coordinate le
+trova la procedura, non vanno sapute.
+
+Alla fine c'e un bivio. Puoi chiudere subito e usare il pannello cosi
+com'e, oppure proseguire con la parte tecnica, che richiede un computer e
+una decina di minuti: il servizio di collegamento e le chiavi delle luci.
+Ogni passo spiega dove reperire i valori che chiede.
+
+Il secondo tablet fa un percorso di due soli campi, indirizzo del servizio
+e parola condivisa, che il principale mostra alla fine. Tutto il resto
+arriva da solo.
+
+La procedura si rilancia quando vuoi dal tasto in fondo alle impostazioni.
+
+## Radio
+
+Le stazioni arrivano da Radio Browser, un archivio aperto mantenuto dalla
+comunita: nessuna registrazione, nessuna chiave. Si cerca per nome, si
+tiene premuto su una stazione per metterla fra le preferite.
+
+L'audio esce dal tablet, non dai Nest: per mandarlo sugli altoparlanti di
+casa serve Spotify, che ha la sua scheda.
+
+## Spesa, timer e sveglia
+
+- **Spesa.** Si detta a voce o si scrive. Si allinea fra i due pannelli, e
+  una cosa tolta non ricompare dall'altro lato mentre sei alla cassa.
+- **Timer.** Da voce o dalla scheda. Le scadenze sono orari assoluti, per
+  cui un timer sopravvive al riavvio della pagina senza perdere secondi.
+- **Sveglia.** Spenta di fabbrica. Una volta accesa, la luce della camera
+  si accende prima dell'orario e la musica parte all'ora esatta.
+
+## Presenza simulata
+
+Spenta di fabbrica. Una volta accesa parte insieme alla sentinella, cioe
+quando parti, e si ferma al disarmo spegnendo quello che aveva acceso.
+
+Le accensioni si spostano di qualche decina di minuti ogni giorno, perche
+uno schema fisso si riconosce dopo due sere. Gli orari vengono imparati
+osservando quando accendete le luci davvero, e finche non ci sono
+abbastanza osservazioni si parte da orari plausibili.
+
+## Chi ha suonato
+
+Ogni squillo del citofono lascia l'orario e, quando la fotocamera e
+disponibile, uno scatto. Restano distinti gli squilli a cui nessuno ha
+risposto.
+
+## Collaudo
+
+Il file `test/qa.js` contiene 48 prove funzionali che coprono tutte le aree
+del pannello. Le istruzioni per eseguirlo sono scritte in cima al file.
+
+| Area | Prove |
+|---|---|
+| Impostazioni | 3 |
+| Dispositivi | 3 |
+| Comandi vocali | 1 su dieci frasi |
+| Promemoria | 3 |
+| Spesa | 3 |
+| Timer | 3 |
+| Sveglia | 3 |
+| Presenza simulata | 4 |
+| Riconoscimento del movimento | 3 |
+| Sentinella | 2 |
+| Interfono | 4 |
+| Telecamere | 2 |
+| Citofono | 2 |
+| Radio | 2 |
+| Meteo | 1 |
+| Microfono e fotocamera | 3 |
+| Notifiche | 2 |
+| Ponte | 1 |
+| Configurazione guidata | 1 |
+| Interfaccia | 2 |
+
 ## Il ponte di casa
 
 Predisposto ma non obbligatorio. Alcuni dispositivi parlano soltanto dentro
