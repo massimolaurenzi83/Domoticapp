@@ -5,6 +5,7 @@ import { devices, scenes, speakers, toggle, runScene, needsBridge } from './devi
 import { wallpaperList, setWallpaper } from './wallpaper.js';
 import { loadReminders, removeReminder, describeWhen } from './reminders.js';
 import { renderSecurity } from './security-view.js';
+import { sendMessage } from './intercom.js';
 import { profiles, profileName } from './profiles.js';
 
 var GIORNI = ['domenica','lunedi','martedi','mercoledi','giovedi','venerdi','sabato'];
@@ -49,6 +50,50 @@ export function renderTab(tab, onChange){
   body.appendChild(grid);
 }
 
+// Manda un messaggio a chi e in casa. Il pannello di la lo legge ad alta
+// voce e lo mostra a schermo.
+function intercomBar(){
+  var row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:10px;align-items:center;';
+
+  var field = document.createElement('input');
+  field.type = 'text';
+  field.placeholder = 'Manda un messaggio in casa, per esempio torno alle otto';
+  field.style.cssText = 'flex:1;background:#1e2228;border:1px solid #272c33;color:#f2f3f5;' +
+    'font-family:inherit;font-size:16px;padding:14px;border-radius:10px;';
+
+  var note = document.createElement('div');
+  note.className = 'set-hint';
+  note.style.cssText = 'min-width:150px;text-align:right;';
+
+  function send(){
+    var text = field.value.trim();
+    if (!text) { note.textContent = 'Scrivi prima il messaggio.'; return; }
+    sendMessage(text, profileName(currentProfile));
+    field.value = '';
+    note.textContent = 'Inviato. Arrivera al prossimo allineamento.';
+    setTimeout(function(){ note.textContent = ''; }, 5000);
+  }
+
+  field.addEventListener('input', function(){
+    if (note.textContent.indexOf('Scrivi') === 0) note.textContent = '';
+  });
+  field.addEventListener('keydown', function(ev){
+    if (ev.key === 'Enter') send();
+  });
+
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn';
+  btn.textContent = 'Manda';
+  btn.addEventListener('click', send);
+
+  row.appendChild(field);
+  row.appendChild(btn);
+  row.appendChild(note);
+  return row;
+}
+
 function renderAgenda(body, onChange){
   body.innerHTML = '';
 
@@ -85,6 +130,7 @@ function renderAgenda(body, onChange){
     })(people[i]);
   }
   wrap.appendChild(top);
+  wrap.appendChild(intercomBar());
 
   var list = document.createElement('div');
   list.style.cssText = 'flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;';

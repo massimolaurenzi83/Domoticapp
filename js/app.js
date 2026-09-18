@@ -21,6 +21,7 @@ import { bridgeDiagnostics, checkBridge } from './bridge.js';
 import { registerWorker, enableNotifications, notificationsActive, pushBlockedReason, isIOS, isStandalone } from './push.js';
 import { micOn, camOn, setMic, setCam, silenceAll, onPrivacyChange, privacySummary } from './privacy.js';
 import { setSyncConfig, startSync, syncConfigured, syncStatus, touch } from './sync.js';
+import { setIntercomHandler } from './intercom.js';
 import { commandLog } from './devices.js';
 import { loadWallpapers, applyWallpaper } from './wallpaper.js';
 import { startVoice, stopVoice, say, voiceAvailable, voiceDiagnostics, captureNext } from './voice.js';
@@ -179,6 +180,13 @@ function boot(){
   }
 
   agendaHooks.onDictate = function(){ captureNext(); };
+
+  setIntercomHandler(function(list){
+    var last = list[list.length - 1];
+    bumpAwake();
+    show('ambient');
+    showVoiceBar('Messaggio da ' + last.from, last.text);
+  });
 
   securityHooks.isArmed = isArmed;
   securityHooks.onArm = function(){ armSentinel(); bumpAwake(); };

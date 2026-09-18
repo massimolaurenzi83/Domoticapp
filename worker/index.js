@@ -102,7 +102,7 @@ export default {
 
     if (request.method === 'GET') {
       var stored = await env.CASA.get('state');
-      return json(stored ? JSON.parse(stored) : { settings: {}, stamps: {}, reminders: [] });
+      return json(stored ? JSON.parse(stored) : { settings: {}, stamps: {}, reminders: [], messages: [] });
     }
 
     if (request.method === 'PUT') {
@@ -111,7 +111,7 @@ export default {
       catch (e) { return json({ error: 'corpo non valido' }, 400); }
 
       var previous = await env.CASA.get('state');
-      var base = previous ? JSON.parse(previous) : { settings: {}, stamps: {}, reminders: [] };
+      var base = previous ? JSON.parse(previous) : { settings: {}, stamps: {}, reminders: [], messages: [] };
       var merged = merge(base, incoming);
 
       await env.CASA.put('state', JSON.stringify(merged));
@@ -128,7 +128,8 @@ function merge(base, incoming){
   var out = {
     settings: Object.assign({}, base.settings),
     stamps: Object.assign({}, base.stamps),
-    reminders: []
+    reminders: [],
+    messages: []
   };
 
   var theirs = incoming.stamps || {};
@@ -156,6 +157,19 @@ function merge(base, incoming){
     out.reminders.push(byId[id]);
   }
   out.reminders.sort(function(a, b){ return (a.when || 0) - (b.when || 0); });
+
+  // I messaggi dell interfono durano un giorno e poi spariscono.
+  var msgById = {};
+  var msgLists = [base.messages || [], incoming.messages || []];
+  var dayAgo = Date.now() - 86400000;
+  for (var a = 0; a < msgLists.length; a++) {
+    for (var b = 0; b < msgLists[a].length; b++) {
+      var m = msgLists[a][b];
+      if (m && m.id && m.at > dayAgo) msgById[m.id] = m;
+    }
+  }
+  for (var mid in msgById) out.messages.push(msgById[mid]);
+  out.messages.sort(function(x, y){ return x.at - y.at; });
 
   return out;
 }

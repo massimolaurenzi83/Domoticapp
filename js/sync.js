@@ -9,6 +9,7 @@
 // lo leggono dalla stessa fonte, quindi sono gia coerenti.
 
 import { settings, save as saveLocal } from './config.js';
+import { receive, mergeForSync, pruneQueue } from './intercom.js';
 
 var CONF_KEY = 'domapp.sync.v1';
 var STAMP_KEY = 'domapp.stamps.v1';
@@ -89,7 +90,8 @@ function push(){
   if (!syncConfigured()) return Promise.resolve();
   var shared = {};
   for (var k in settings) if (!LOCAL_ONLY[k]) shared[k] = settings[k];
-  var body = { settings: shared, stamps: stamps(), reminders: readReminders() };
+  pruneQueue();
+  var body = { settings: shared, stamps: stamps(), reminders: readReminders(), messages: mergeForSync(lastRemoteMessages) };
   return fetch(conf.url + '/state', {
     method: 'PUT', headers: headers(), body: JSON.stringify(body)
   }).then(function(r){
@@ -100,6 +102,7 @@ function push(){
 // ---------- fusione ----------
 
 var LOCAL_ONLY = { syncUrl:1, syncToken:1, bridgeUrl:1 };
+var lastRemoteMessages = [];
 
 function merge(remote){
   if (!remote || typeof remote !== 'object') return false;
@@ -120,6 +123,10 @@ function merge(remote){
   if (changed) { saveLocal(); writeStamps(mine); }
 
   if (mergeReminders(remote.reminders)) changed = true;
+
+  lastRemoteMessages = remote.messages || [];
+  if (receive(lastRemoteMessages) > 0) changed = true;
+
   return changed;
 }
 

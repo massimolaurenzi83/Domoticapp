@@ -88,6 +88,19 @@ chiede il codice, perche spegnere i sensori non deve mai richiedere di
 cercare dentro un menu. Quando uno dei due e spento compare una targhetta
 in alto che lo dice, e resta li finche non lo riaccendi.
 
+## Interfono
+
+Dalla casella in Agenda mandi un messaggio a chi e in casa. Il pannello di
+la lo legge ad alta voce e lo mostra a schermo, svegliandosi da solo.
+
+Non serve registrare la voce: il tablet legge il testo con la stessa
+sintesi che usa per rispondere ai comandi. Un messaggio scritto pesa pochi
+byte, arriva sempre, e si puo leggere anche in una stanza rumorosa.
+
+Nelle ore di silenzio, impostabili, il messaggio compare a schermo ma non
+viene letto. I messaggi durano un giorno e poi spariscono da soli: sentirsi
+dire "torno alle otto" il mattino dopo non serve a nessuno.
+
 ## Sentinella
 
 Due modi distinti per la stessa fotocamera.

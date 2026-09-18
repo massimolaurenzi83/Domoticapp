@@ -81,6 +81,15 @@ export var SCHEMA = [
     label:'Parola condivisa',
     hint:'La stessa sui due tablet. Serve a proteggere il documento comune' },
 
+  { id:'intercomSpeak', type:'bool', def:true, group:'Interfono',
+    label:'Leggi i messaggi ad alta voce',
+    hint:'Se spenta i messaggi compaiono solo a schermo' },
+  { id:'intercomQuietStart', type:'time', def:'22:30', group:'Interfono',
+    label:'Silenzio dalle',
+    hint:'In queste ore i messaggi si vedono ma non si sentono' },
+  { id:'intercomQuietEnd', type:'time', def:'07:30', group:'Interfono',
+    label:'Silenzio fino alle', hint:'' },
+
   { id:'sentinelKeepDays', type:'num', def:14, min:1, max:365, group:'Sentinella',
     label:'Giorni di conservazione',
     hint:'Gli scatti piu vecchi vengono cancellati da soli' },
