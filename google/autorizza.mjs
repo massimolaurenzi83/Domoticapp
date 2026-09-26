@@ -98,6 +98,7 @@ function chiediPermesso(client) {
     const verifier = randomBytes(32).toString('base64url');
     const challenge = createHash('sha256').update(verifier).digest('base64url');
     const stato = randomBytes(12).toString('hex');
+    let redirect = '';
 
     const server = createServer(async (req, res) => {
       const u = new URL(req.url, 'http://127.0.0.1');
@@ -111,7 +112,7 @@ function chiediPermesso(client) {
       if (errore) { reject(new Error('Google ha risposto: ' + errore)); return; }
       if (u.searchParams.get('state') !== stato) { reject(new Error('risposta di Google non riconosciuta')); return; }
 
-      const redirect = 'http://127.0.0.1:' + server.address().port;
+      redirect = redirect || 'http://127.0.0.1:' + server.address().port;
       const r = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -126,7 +127,7 @@ function chiediPermesso(client) {
     });
 
     server.listen(0, '127.0.0.1', () => {
-      const redirect = 'http://127.0.0.1:' + server.address().port;
+      redirect = redirect || 'http://127.0.0.1:' + server.address().port;
       const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
         client_id: client.id, redirect_uri: redirect, response_type: 'code', scope: SCOPE,
         access_type: 'offline', prompt: 'consent', state: stato,
