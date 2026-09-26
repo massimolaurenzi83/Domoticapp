@@ -9,4 +9,4 @@ workers_dev = true
 
 [[kv_namespaces]]
 binding = "CASA"
-id = "DA_CREARE"
+id = "a4e5697962c44cf1baaec0a09d51586d"
