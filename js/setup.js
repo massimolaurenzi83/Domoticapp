@@ -199,6 +199,45 @@ function stepWelcome(card){
 
 // ---- luogo ----
 
+// Due servizi di ricerca invece di uno. Il primo e piu preciso sui nomi
+// italiani, ma su alcune reti non e raggiungibile: in quel caso si ripiega
+// sull archivio di OpenStreetMap.
+function cercaCitta(nome){
+  var q = encodeURIComponent(nome);
+
+  return fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&language=it&name=' + q,
+               { cache: 'no-store' })
+    .then(function(r){
+      if (!r.ok) throw new Error('stato ' + r.status);
+      return r.json();
+    })
+    .then(function(j){
+      if (!j.results || !j.results.length) return null;
+      var x = j.results[0];
+      return { name: x.name, admin1: x.admin1, latitude: x.latitude, longitude: x.longitude };
+    })
+    .catch(function(){
+      return fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=it&q=' + q,
+                   { cache: 'no-store' })
+        .then(function(r){
+          if (!r.ok) throw new Error('stato ' + r.status);
+          return r.json();
+        })
+        .then(function(lista){
+          if (!lista || !lista.length) return null;
+          var x = lista[0];
+          // Il nome arriva come indirizzo completo: teniamo le prime due parti.
+          var pezzi = String(x.display_name || nome).split(',');
+          return {
+            name: pezzi[0].trim(),
+            admin1: pezzi.length > 1 ? pezzi[1].trim() : '',
+            latitude: parseFloat(x.lat),
+            longitude: parseFloat(x.lon)
+          };
+        });
+    });
+}
+
 function stepPlace(card){
   title(card, 'Dove sei');
   para(card, 'Scrivi la tua citta e premi Cerca. Serve per il meteo.');
@@ -213,22 +252,19 @@ function stepPlace(card){
     if (!q) { result.textContent = 'Scrivi prima il nome della citta.'; return; }
     result.textContent = 'Cerco...';
 
-    fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&language=it&name=' +
-          encodeURIComponent(q))
-      .then(function(r){ return r.json(); })
-      .then(function(j){
-        if (!j.results || !j.results.length) {
-          result.textContent = 'Non ho trovato questa citta. Prova col nome completo.';
-          found = null;
-          return;
-        }
-        found = j.results[0];
-        result.textContent = 'Trovata: ' + found.name +
-          (found.admin1 ? ', ' + found.admin1 : '') + '. Premi Avanti per confermare.';
-      })
-      .catch(function(){
-        result.textContent = 'Non riesco a raggiungere il servizio. Puoi andare avanti e sistemarlo dopo.';
-      });
+    cercaCitta(q).then(function(luogo){
+      if (!luogo) {
+        result.textContent = 'Non ho trovato questa citta. Prova col nome completo.';
+        found = null;
+        return;
+      }
+      found = luogo;
+      result.textContent = 'Trovata: ' + luogo.name +
+        (luogo.admin1 ? ', ' + luogo.admin1 : '') + '. Premi Avanti per confermare.';
+    }).catch(function(){
+      result.textContent = 'Nessun servizio di ricerca raggiungibile. Vai avanti lo stesso: ' +
+        'il meteo si sistema dalle impostazioni.';
+    });
   }
 
   input.addEventListener('keydown', function(ev){ if (ev.key === 'Enter') search(); });

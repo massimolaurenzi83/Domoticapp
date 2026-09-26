@@ -191,6 +191,37 @@ vuoti tutto resta su questo tablet.
 
 Le istruzioni per pubblicare il servizio sono in cima a `worker/index.js`.
 
+## Meteo con tre fornitori
+
+Un solo fornitore e un punto di rottura: basta che la rete di casa non
+raggiunga quel server e il pannello resta senza meteo per sempre. E
+successo davvero, con una rete che raggiungeva tutto tranne quell indirizzo.
+
+Il pannello ne prova tre in ordine finche uno risponde, e ricorda quale ha
+funzionato per non ripetere tentativi a vuoto. Ogni sei ore riparte dal
+primo, cosi se il problema era passeggero si torna al migliore. Un
+fornitore che non risponde entro otto secondi viene scartato.
+
+| Ordine | Fornitore | Note |
+|---|---|---|
+| 1 | Open-Meteo | il piu completo |
+| 2 | met.no | servizio meteorologico norvegese |
+| 3 | wttr.in | ultima spiaggia |
+
+Anche la ricerca della citta ha un servizio di scorta, l archivio di
+OpenStreetMap.
+
+## Tablet vecchi e certificati
+
+Android 5.1 ha un elenco di enti di certificazione fermo al 2015 e non
+riconosce ISRG Root X1, che oggi firma buona parte del web. Il sintomo e
+l errore `NET::ERR_CERT_AUTHORITY_INVALID` su quasi tutti i siti.
+
+Il rimedio sta in `certificato/`, pubblicato insieme al pannello: si apre
+quella pagina dal tablet e si installa il certificato. Serve un blocco
+schermo, perche Android lo pretende, e va tenuto: togliendolo Android
+cancella i certificati installati.
+
 ## Prima configurazione
 
 Alla prima apertura parte una procedura guidata. Sul tablet principale sono

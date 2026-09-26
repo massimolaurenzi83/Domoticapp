@@ -11,7 +11,7 @@
 import { settings, isDaytime, isSleepHours } from './config.js';
 import { initScreen, applyScheduledBrightness, screenDiagnostics } from './screen.js';
 import { startPresence, stopPresence, presenceDiagnostics, armSentinel, disarmSentinel, isArmed, armedSince } from './presence.js';
-import { fetchWeather } from './weather.js';
+import { fetchWeather, weatherDiagnostics } from './weather.js';
 import { loadPhotos, nextPhoto, photoCount } from './photos.js';
 import { buildSettings, renderTab, timeString, dateString, agendaHooks, currentProfile } from './ui.js';
 import { parseWhen, addReminder, describeWhen } from './reminders.js';
@@ -124,7 +124,7 @@ function refreshWeather(){
     document.getElementById('weather-desc').textContent = line;
     document.getElementById('weather-place').textContent = settings.placeName;
   }).catch(function(){
-    document.getElementById('weather-desc').textContent = 'meteo non raggiungibile';
+    document.getElementById('weather-desc').textContent = 'nessun servizio meteo raggiungibile';
   });
 }
 
@@ -154,6 +154,7 @@ function updateDiagnostics(){
     screenDiagnostics(),
     presenceDiagnostics(),
     voiceDiagnostics(),
+    weatherDiagnostics(),
     bridgeDiagnostics(),
     backupDiagnostics(),
     simulationDiagnostics(),
