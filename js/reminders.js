@@ -7,6 +7,8 @@
 var KEY = 'domapp.reminders.v1';
 
 var GIORNI = ['domenica','lunedi','martedi','mercoledi','giovedi','venerdi','sabato'];
+// Gli stessi giorni con l accento, per quando si leggono a schermo.
+var GIORNI_VIS = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
 var MESI = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio',
             'agosto','settembre','ottobre','novembre','dicembre'];
 
@@ -68,7 +70,9 @@ export function pendingSync(){
 // temporali. Se non trova nessuna data, when resta null.
 export function parseWhen(phrase, now){
   var base = now ? new Date(now.getTime()) : new Date();
-  var t = ' ' + String(phrase || '').toLowerCase() + ' ';
+  // Il riconoscimento vocale scrive lunedì con l accento: lo si toglie per
+  // confrontare, cosi funziona con e senza.
+  var t = ' ' + String(phrase || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') + ' ';
   var d = null;
   var found = [];
 
@@ -143,5 +147,5 @@ export function describeWhen(ms){
   if (sameDay) return 'oggi alle ' + hm;
   var tomorrow = new Date(now.getTime() + 86400000);
   if (d.toDateString() === tomorrow.toDateString()) return 'domani alle ' + hm;
-  return GIORNI[d.getDay()] + ' ' + d.getDate() + ' ' + MESI[d.getMonth()] + ' alle ' + hm;
+  return GIORNI_VIS[d.getDay()] + ' ' + d.getDate() + ' ' + MESI[d.getMonth()] + ' alle ' + hm;
 }

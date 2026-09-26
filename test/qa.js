@@ -494,6 +494,22 @@ localStorage.removeItem('domapp.reminders.v1');
 prova('Allineamento', 'le scelte proprie di ogni schermo non viaggiano',
   syncMod.LOCAL_ONLY.uiScale && syncMod.LOCAL_ONLY.wallpaper && syncMod.LOCAL_ONLY.deviceRole && syncMod.LOCAL_ONLY.syncToken);
 
+// ---------- 24d. accenti ----------
+// Il riconoscimento vocale di Google scrive le parole con gli accenti.
+
+const rem3 = await import('/js/reminders.js');
+const conAccento = rem3.parseWhen('ricordami la riunione lunedì alle 15', new Date(2026, 8, 26, 10, 0));
+prova('Voce', 'lunedì con l accento viene riconosciuto come giorno', conAccento.when && conAccento.when.getDay() === 1);
+
+dev.setLive(true);
+const spesaAccento = intents.runCommand('aggiungi il caffè alla lista della spesa');
+dev.setLive(false);
+prova('Voce', 'la spesa detta con gli accenti conserva gli accenti', shop.loadItems().some(i => i.text === 'caffè'));
+
+prova('Testi', 'le risposte hanno accenti e apostrofi giusti',
+  intents.runCommand('fammi vedere l agenda').reply === 'Ecco l’agenda.' &&
+  intents.runCommand('accendi la tv').reply.indexOf('non è ancora') !== -1);
+
 // ---------- 24c. promemoria e sveglia ----------
 
 const rem2 = await import('/js/reminders.js');

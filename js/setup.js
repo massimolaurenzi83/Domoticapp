@@ -131,7 +131,7 @@ function buttons(card, options){
     var skip = document.createElement('button');
     skip.type = 'button';
     skip.className = 'btn';
-    skip.textContent = 'Lo faro dopo';
+    skip.textContent = 'Lo farò dopo';
     skip.addEventListener('click', next);
     row.appendChild(skip);
   }
@@ -165,7 +165,7 @@ function note(card, text){
 
 function stepWelcome(card){
   title(card, 'Benvenuto');
-  para(card, 'Quattro domande facili e hai finito. Questo e il tablet fisso al muro, oppure un altro dispositivo, come il secondo tablet o un telefono?');
+  para(card, 'Quattro domande facili e hai finito. Questo è il tablet fisso al muro, oppure un altro dispositivo, come il secondo tablet o un telefono?');
 
   var row = document.createElement('div');
   row.className = 'setup-choice';
@@ -240,7 +240,7 @@ function cercaCitta(nome){
 
 function stepPlace(card){
   title(card, 'Dove sei');
-  para(card, 'Scrivi la tua citta e premi Cerca. Serve per il meteo.');
+  para(card, 'Scrivi la tua città e premi Cerca. Serve per il meteo.');
 
   var input = field(card, 'Citta', settings.placeName || '', 'per esempio Roma');
   var result = note(card, '');
@@ -249,12 +249,12 @@ function stepPlace(card){
 
   function search(){
     var q = input.value.trim();
-    if (!q) { result.textContent = 'Scrivi prima il nome della citta.'; return; }
+    if (!q) { result.textContent = 'Scrivi prima il nome della città.'; return; }
     result.textContent = 'Cerco...';
 
     cercaCitta(q).then(function(luogo){
       if (!luogo) {
-        result.textContent = 'Non ho trovato questa citta. Prova col nome completo.';
+        result.textContent = 'Non ho trovato questa città. Prova col nome completo.';
         found = null;
         return;
       }
@@ -363,7 +363,7 @@ function stepHours(card){
 
   card.appendChild(wrap);
 
-  para(card, 'Finche non carichi delle foto, resta sempre la stazione meteo.');
+  para(card, 'Finché non carichi delle foto, resta sempre la stazione meteo.');
 
   buttons(card, { back: true, onNext: function(){
     settings.dayStart = d1.value;
@@ -380,10 +380,10 @@ function stepHours(card){
 
 function stepService(card){
   title(card, 'Collegare i dispositivi');
-  para(card, 'Il servizio di collegamento tiene insieme i due tablet e i telefoni, e porta le notifiche fuori casa. E gratuito e si installa dal computer.');
+  para(card, 'Il servizio di collegamento tiene insieme i due tablet e i telefoni, e porta le notifiche fuori casa. È gratuito e si installa dal computer.');
 
   where(card, [
-    'Sul computer, nella cartella del progetto, esegui npx wrangler login: si apre il browser per entrare in Cloudflare, anche con un account nuovo e gratuito.',
+    'Sul computer, nella cartella del progetto, esegui npx wrangler login: si apre il browser per entrare in Cloudflare, anche con un account nuovo è gratuito.',
     'Poi esegui node worker/installa.mjs. Fa tutto da solo e alla fine ti mostra un link.',
     'Manda quel link a te stesso, per email o WhatsApp, e aprilo su questo tablet: il collegamento si compila da solo.',
     'Se preferisci, puoi scrivere qui sotto i due valori, che trovi anche nel file worker/credenziali.txt.'
@@ -399,18 +399,18 @@ function stepService(card){
   test.style.marginTop = '10px';
   test.textContent = 'Prova il collegamento';
   test.addEventListener('click', function(){
-    if (!url.value.trim()) { result.textContent = 'Scrivi prima l indirizzo.'; return; }
+    if (!url.value.trim()) { result.textContent = 'Scrivi prima l’indirizzo.'; return; }
     result.textContent = 'Provo...';
     fetch(url.value.trim().replace(/\/+$/, '') + '/state', {
       headers: { 'X-Casa-Token': token.value.trim() }
     }).then(function(r){
       if (r.ok) result.textContent = 'Funziona. Il servizio risponde correttamente.';
       else if (r.status === 401) result.textContent = 'Il servizio risponde ma rifiuta la parola. Controlla di averla scritta identica, trattini compresi.';
-      else if (r.status === 429) result.textContent = 'Troppi tentativi con una parola sbagliata. Aspetta un quarto d ora.';
-      else if (r.status === 500) result.textContent = 'Il servizio non ha ancora la parola impostata: rilancia l installazione sul computer.';
+      else if (r.status === 429) result.textContent = 'Troppi tentativi con una parola sbagliata. Aspetta un quarto d’ora.';
+      else if (r.status === 500) result.textContent = 'Il servizio non ha ancora la parola impostata: rilancia l’installazione sul computer.';
       else result.textContent = 'Il servizio risponde con un errore: ' + r.status;
     }).catch(function(){
-      result.textContent = 'Non risponde. Controlla l indirizzo, oppure vai avanti e sistemalo dopo.';
+      result.textContent = 'Non risponde. Controlla l’indirizzo, oppure vai avanti e sistemalo dopo.';
     });
   });
   card.appendChild(test);
@@ -468,14 +468,14 @@ function stepPermissions(card){
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function(s){
       s.getTracks().forEach(function(t){ t.stop(); });
       done(true);
-    }).catch(function(){ done(false, 'Rifiutato. La voce restera spenta.'); });
+    }).catch(function(){ done(false, 'Rifiutato. La voce resterà spenta.'); });
   });
 
   perm('Fotocamera', 'Per accorgersi di chi passa e per la sentinella.', function(done){
     navigator.mediaDevices.getUserMedia({ video: true }).then(function(s){
       s.getTracks().forEach(function(t){ t.stop(); });
       done(true);
-    }).catch(function(){ done(false, 'Rifiutata. Il rilevamento restera spento.'); });
+    }).catch(function(){ done(false, 'Rifiutata. Il rilevamento resterà spento.'); });
   });
 
   perm('Notifiche', 'Per avvisarti sul telefono quando la sentinella rileva qualcosa.', function(done){
@@ -495,8 +495,8 @@ function stepPermissions(card){
 
 function stepFork(card){
   title(card, 'Hai finito');
-  para(card, 'Il pannello e gia pronto: orologio, meteo, voce, promemoria, spesa, timer e radio.');
-  para(card, 'Resta una cosa facoltativa, da fare al computer in una decina di minuti: collegare fra loro i due tablet e i telefoni, cosi puoi comandare tutto anche da fuori casa. Puoi farla quando vuoi dalle impostazioni.');
+  para(card, 'Il pannello è già pronto: orologio, meteo, voce, promemoria, spesa, timer e radio.');
+  para(card, 'Resta una cosa facoltativa, da fare al computer in una decina di minuti: collegare fra loro i due tablet e i telefoni, così puoi comandare tutto anche da fuori casa. Puoi farla quando vuoi dalle impostazioni.');
 
   var row = document.createElement('div');
   row.className = 'setup-choice';
@@ -504,7 +504,7 @@ function stepFork(card){
   var later = document.createElement('button');
   later.type = 'button';
   later.className = 'setup-big';
-  later.innerHTML = '<strong>Finisci qui</strong><span>Le faro con calma</span>';
+  later.innerHTML = '<strong>Finisci qui</strong><span>Le farò con calma</span>';
   later.addEventListener('click', close);
 
   var now = document.createElement('button');
@@ -525,12 +525,12 @@ function stepFork(card){
 
 function stepHandoff(card){
   title(card, 'Gli altri dispositivi');
-  para(card, 'Sul secondo tablet e sui telefoni apri lo stesso link che ti ha dato l installazione. Si collegano da soli e ricevono stanze, promemoria, spesa e impostazioni.');
+  para(card, 'Sul secondo tablet e sui telefoni apri lo stesso link che ti ha dato l’installazione. Si collegano da soli e ricevono stanze, promemoria, spesa e impostazioni.');
 
   if (!settings.syncUrl) {
-    note(card, 'Non hai ancora impostato il servizio, quindi per ora ogni dispositivo resta indipendente. Puoi farlo piu avanti dalle impostazioni.');
+    note(card, 'Non hai ancora impostato il servizio, quindi per ora ogni dispositivo resta indipendente. Puoi farlo più avanti dalle impostazioni.');
   } else {
-    para(card, 'Se il link non ce l hai sotto mano, sull altro dispositivo scegli Un altro dispositivo e scrivi questi due valori.');
+    para(card, 'Se il link non ce l’hai sotto mano, sull’altro dispositivo scegli Un altro dispositivo e scrivi questi due valori.');
     var box = document.createElement('div');
     box.className = 'setup-handoff';
     [['Indirizzo del servizio', settings.syncUrl], ['Parola condivisa', settings.syncToken]].forEach(function(r){
@@ -553,7 +553,7 @@ function stepHandoff(card){
 
 function stepJoin(card){
   title(card, 'Collega questo dispositivo');
-  para(card, 'Il modo piu semplice: apri su questo dispositivo il link che ti ha dato l installazione, e si collega da solo. In alternativa scrivi qui i due valori.');
+  para(card, 'Il modo più semplice: apri su questo dispositivo il link che ti ha dato l’installazione, e si collega da solo. In alternativa scrivi qui i due valori.');
 
   var url = field(card, 'Indirizzo del servizio', settings.syncUrl || '',
                   'https://qualcosa.workers.dev');
@@ -584,7 +584,7 @@ function stepJoin(card){
         result.textContent = 'Il servizio risponde con un errore: ' + r.status;
       }
     }).catch(function(){
-      result.textContent = 'Non risponde. Controlla l indirizzo e che il tablet sia in rete.';
+      result.textContent = 'Non risponde. Controlla l’indirizzo e che il tablet sia in rete.';
     });
   }});
 }

@@ -225,7 +225,7 @@ function updateDiagnostics(){
     'Notifiche: ' + (notificationsActive() ? 'attive' : (pushBlockedReason() || 'da attivare')),
     'Telefono: ' + (isIOS() ? ('iPhone, ' + (isStandalone() ? 'aperta dalla schermata Home' : 'aperta dentro il browser')) : 'Android o altro'),
     'Foto caricate: ' + photoCount(),
-    'Contesto sicuro: ' + (window.isSecureContext ? 'si' : 'no, la fotocamera restera spenta'),
+    'Contesto sicuro: ' + (window.isSecureContext ? 'sì' : 'no, la fotocamera resterà spenta'),
     'Schermo: ' + window.innerWidth + ' per ' + window.innerHeight,
     '',
     'Ultimi comandi:',
@@ -275,7 +275,7 @@ function boot(){
     if (effectiveRole() !== 'pannello') {
       showVoiceBar('Sentinella', syncConfigured()
         ? 'Comando inviato: i pannelli di casa cominciano a sorvegliare entro mezzo minuto.'
-        : 'Questo telefono non e collegato ai pannelli di casa: il comando non arrivera.');
+        : 'Questo telefono non è collegato ai pannelli di casa: il comando non arriverà.');
       return;
     }
     startSimulation();
@@ -422,8 +422,8 @@ function boot(){
     show('ambient');
     beep(4);
     var what = t.name ? 'Il timer ' + t.name : 'Il timer';
-    showVoiceBar('', what + ' e finito.');
-    if (settings.voiceReply) say(what + ' e finito.');
+    showVoiceBar('', what + ' è finito.');
+    if (settings.voiceReply) say(what + ' è finito.');
   });
 
   checkDueReminders(true);
@@ -610,7 +610,7 @@ function setupBackupButtons(){
       if (!at) { esito.textContent = 'Non sono riuscito a salvare la copia.'; return; }
       return pushToService().then(function(suServizio){
         esito.textContent = 'Copia salvata sul tablet' +
-          (suServizio ? ' e sul servizio.' : '. Il servizio non e raggiungibile.');
+          (suServizio ? ' e sul servizio.' : '. Il servizio non è raggiungibile.');
         updateDiagnostics();
       });
     });
@@ -670,7 +670,7 @@ function setupBackupButtons(){
 function allowCameraOffWhileArmed(){
   if (!isArmed()) return true;
   if (pinRequired()) {
-    var entered = window.prompt('La sentinella e armata. Codice per spegnere la fotocamera');
+    var entered = window.prompt('La sentinella è armata. Codice per spegnere la fotocamera');
     if (entered === null) return false;
     if (!pinOk(entered)) { showVoiceBar('', 'Codice errato. La fotocamera resta accesa.'); return false; }
   }
@@ -927,7 +927,7 @@ function onAlarm(info){
 
 function sendAlarm(info){
   if (!settings.syncUrl || !settings.syncToken) {
-    lastAlarmResult = 'servizio non configurato: l allarme resta solo su questo tablet';
+    lastAlarmResult = 'servizio non configurato: l’allarme resta solo su questo tablet';
     return;
   }
   thumbFrom(info.blob).then(function(thumb){

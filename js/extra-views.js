@@ -55,7 +55,7 @@ export function renderShopping(body){
     'grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;align-content:start;';
 
   if (!items.length) {
-    list.appendChild(hint('La lista e vuota. Scrivi qui sopra oppure chiama il tablet per nome e digli cosa aggiungere.'));
+    list.appendChild(hint('La lista è vuota. Scrivi qui sopra oppure chiama il tablet per nome e digli cosa aggiungere.'));
   }
 
   for (var i = 0; i < items.length; i++) {
@@ -110,9 +110,9 @@ export function renderAlarms(body){
     off.style.cssText = 'background:#14171b;border-radius:12px;padding:22px;';
     var t = document.createElement('div');
     t.style.fontSize = '19px';
-    t.textContent = 'La sveglia e spenta';
+    t.textContent = 'La sveglia è spenta';
     off.appendChild(t);
-    off.appendChild(hint('Accendila dalle impostazioni, nel gruppo Sveglia. Finche resta spenta questo pannello non tocca ne luci ne musica.'));
+    off.appendChild(hint('Accendila dalle impostazioni, nel gruppo Sveglia. Finché resta spenta questo pannello non tocca né luci né musica.'));
     wrap.appendChild(off);
   } else {
     var next = nextAlarm();
@@ -124,7 +124,7 @@ export function renderAlarms(body){
       ? 'Prossima sveglia alle ' + next.alarm.time + (next.inDays === 0 ? ', oggi' : (next.inDays === 1 ? ', domani' : ', fra ' + next.inDays + ' giorni'))
       : 'Nessun orario impostato';
     head.appendChild(line);
-    head.appendChild(hint('Per ora suona il tablet e ti dice l ora. Luce della camera e musica partiranno quando Google Home sara collegato.'));
+    head.appendChild(hint('Per ora suona il tablet e ti dice l’ora. Luce della camera e musica partiranno quando Google Home sarà collegato.'));
     wrap.appendChild(head);
   }
 
@@ -212,7 +212,7 @@ export function renderAlarms(body){
 
   add.appendChild(when);
   add.appendChild(addBtn);
-  add.appendChild(hint('Parte dal lunedi al venerdi. I giorni si cambiano toccandoli.'));
+  add.appendChild(hint('Parte dal lunedì al venerdì. I giorni si cambiano toccandoli.'));
   wrap.appendChild(add);
 
   body.appendChild(wrap);

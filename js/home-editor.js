@@ -91,7 +91,7 @@ function paint(scrollTo){
   if (isExampleLayout()) {
     inner.appendChild(el('p', 'set-hint',
       'Quelle che vedi sono di esempio. Rinominale, cancellale e aggiungi le tue: ' +
-      'il pannello usera esattamente queste.'));
+      'il pannello userà esattamente queste.'));
   }
 
   var msg = el('div', 'ed-msg');
@@ -132,8 +132,8 @@ function paint(scrollTo){
   // ---- dispositivi ----
   inner.appendChild(el('div', 'ed-section', 'Dispositivi'));
   inner.appendChild(el('p', 'set-hint',
-    'Il nome in Google Home va scritto come compare nell app Google Home: e quello che ' +
-    'servira per comandarlo davvero.'));
+    'Il nome in Google Home va scritto come compare nell’app Google Home: è quello che ' +
+    'servirà per comandarlo davvero.'));
 
   var tipi = {};
   for (var t in TYPES) tipi[t] = TYPES[t].label;
@@ -192,7 +192,7 @@ function paint(scrollTo){
   // ---- scene ----
   inner.appendChild(el('div', 'ed-section', 'Scene'));
   inner.appendChild(el('p', 'set-hint',
-    'Una scena accende o spegne piu cose con un tocco. Per ogni dispositivo scegli cosa fare.'));
+    'Una scena accende o spegne più cose con un tocco. Per ogni dispositivo scegli cosa fare.'));
 
   draft.scenes.forEach(function(s){
     var box = el('div', 'ed-device');
@@ -252,7 +252,7 @@ function paint(scrollTo){
   });
   var cancel = button('Annulla');
   cancel.addEventListener('click', close);
-  var reset = button('Torna all esempio');
+  var reset = button('Torna all’esempio');
   reset.addEventListener('click', function(){
     if (!window.confirm('Rimettere stanze e dispositivi di esempio? Le tue modifiche andranno perse.')) return;
     resetToExample();
@@ -279,13 +279,13 @@ function labelled(text, control, onChange){
 
 function validate(){
   for (var i = 0; i < draft.rooms.length; i++) {
-    if (!String(draft.rooms[i].name || '').trim()) return 'C e una stanza senza nome.';
+    if (!String(draft.rooms[i].name || '').trim()) return 'C’è una stanza senza nome.';
   }
   for (var k = 0; k < draft.devices.length; k++) {
-    if (!String(draft.devices[k].name || '').trim()) return 'C e un dispositivo senza nome.';
+    if (!String(draft.devices[k].name || '').trim()) return 'C’è un dispositivo senza nome.';
   }
   for (var s = 0; s < draft.scenes.length; s++) {
-    if (!String(draft.scenes[s].name || '').trim()) return 'C e una scena senza nome.';
+    if (!String(draft.scenes[s].name || '').trim()) return 'C’è una scena senza nome.';
   }
   return '';
 }

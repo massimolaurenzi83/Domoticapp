@@ -37,7 +37,7 @@ export function pushSupported(){
 export function pushBlockedReason(){
   if (!window.isSecureContext) return 'Le notifiche richiedono una connessione protetta.';
   if (!pushSupported()) {
-    if (isIOS()) return 'Su iPhone serve iOS 16.4 o piu recente.';
+    if (isIOS()) return 'Su iPhone serve iOS 16.4 o più recente.';
     return 'Questo browser non supporta le notifiche.';
   }
   if (isIOS() && !isStandalone()) {
@@ -88,7 +88,7 @@ export function enableNotifications(){
 function subscribe(r){
   if (!r) return { ok: false, message: 'Lavoratore in background non installato.' };
   if (!settings.syncUrl) {
-    return { ok: false, message: 'Prima va impostato l indirizzo del servizio, nel gruppo Sincronizzazione.' };
+    return { ok: false, message: 'Prima va impostato l’indirizzo del servizio, nel gruppo Sincronizzazione.' };
   }
 
   var base = String(settings.syncUrl).replace(/\/+$/, '');

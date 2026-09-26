@@ -245,7 +245,7 @@ export function pushToService(){
 // spiega cosa non va.
 export function pullFromService(){
   if (!settings.syncUrl || !settings.syncToken) {
-    return Promise.reject(new Error('il servizio di collegamento non e configurato'));
+    return Promise.reject(new Error('il servizio di collegamento non è configurato'));
   }
   var base = String(settings.syncUrl).replace(/\/+$/, '');
   var h = { 'X-Casa-Token': settings.syncToken };
@@ -257,7 +257,7 @@ export function pullFromService(){
   }
 
   return fetch(base + '/backup', { headers: h, cache: 'no-store' }).then(leggi).then(function(indice){
-    if (!indice || !indice.length) throw new Error('sul servizio non c e ancora nessuna copia');
+    if (!indice || !indice.length) throw new Error('sul servizio non c’è ancora nessuna copia');
     var mio = deviceId();
     var scelta = indice.filter(function(x){ return x.id === mio; })[0];
     if (!scelta) {

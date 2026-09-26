@@ -51,7 +51,7 @@ export function startVoice(handlers){
   onCommand = handlers.onCommand;
   onStateChange = handlers.onStateChange;
 
-  if (!micOn()) { status = 'microfono spento dall interruttore'; return false; }
+  if (!micOn()) { status = 'microfono spento dall’interruttore'; return false; }
 
   var R = Recognizer();
   if (!R) { status = 'riconoscimento vocale non disponibile in questo browser'; return false; }

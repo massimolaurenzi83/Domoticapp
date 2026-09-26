@@ -163,7 +163,7 @@ export function spokenDuration(seconds){
   var m = Math.floor((seconds % 3600) / 60);
   var s = seconds % 60;
   var parts = [];
-  if (h) parts.push(h === 1 ? 'un ora' : h + ' ore');
+  if (h) parts.push(h === 1 ? 'un’ora' : h + ' ore');
   if (m) parts.push(m === 1 ? 'un minuto' : m + ' minuti');
   if (s) parts.push(s === 1 ? 'un secondo' : s + ' secondi');
   return parts.join(' e ');

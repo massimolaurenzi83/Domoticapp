@@ -52,7 +52,7 @@ export function startPresence(callbacks){
   onMotion = cb.onMotion;
   onAlarm = cb.onAlarm;
 
-  if (!camOn()) { status = 'fotocamera spenta dall interruttore'; return Promise.resolve(false); }
+  if (!camOn()) { status = 'fotocamera spenta dall’interruttore'; return Promise.resolve(false); }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     status = 'fotocamera non disponibile in questo browser';
     return Promise.resolve(false);

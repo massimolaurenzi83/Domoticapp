@@ -19,7 +19,7 @@ export var FAMILIES = {
     main: 'rtsp://{user}:{pass}@{ip}:554/onvif1',
     sub:  'rtsp://{user}:{pass}@{ip}:554/onvif2',
     onvifPort: 8899,
-    note: 'La piu diffusa fra le telecamere senza marca'
+    note: 'La più diffusa fra le telecamere senza marca'
   },
   xmeye_sdp: {
     label: 'XMEye, variante con sdp',
@@ -40,7 +40,7 @@ export var FAMILIES = {
     main: 'rtsp://{user}:{pass}@{ip}:554/live/ch00_0',
     sub:  'rtsp://{user}:{pass}@{ip}:554/live/ch00_1',
     onvifPort: 8899,
-    note: 'Su molti modelli RTSP e spento di fabbrica e va abilitato'
+    note: 'Su molti modelli RTSP è spento di fabbrica e va abilitato'
   },
   yoosee: {
     label: 'Yoosee',
@@ -61,14 +61,14 @@ export var FAMILIES = {
     main: 'onvif://{user}:{pass}@{ip}:{onvifPort}',
     sub:  '',
     onvifPort: 8899,
-    note: 'Il ponte interroga la telecamera e ricava da solo l indirizzo'
+    note: 'Il ponte interroga la telecamera e ricava da solo l’indirizzo'
   },
   custom: {
     label: 'Indirizzo scritto a mano',
     main: '',
     sub:  '',
     onvifPort: 0,
-    note: 'Da usare quando conosci gia l indirizzo esatto'
+    note: 'Da usare quando conosci già l’indirizzo esatto'
   }
 };
 
@@ -132,7 +132,7 @@ export function buildBridgeConfig(passwords){
   var list = loadCameras();
   var lines = [
     '# Configurazione go2rtc per il ponte di casa.',
-    '# Copiala in go2rtc.yaml accanto all eseguibile e riavvia il servizio.',
+    '# Copiala in go2rtc.yaml accanto all’eseguibile e riavvia il servizio.',
     '# Le password stanno solo in questo file, sul Raspberry Pi.',
     '',
     'streams:'

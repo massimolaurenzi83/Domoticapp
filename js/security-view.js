@@ -184,7 +184,7 @@ function addForm(){
   add.textContent = 'Aggiungi';
   add.addEventListener('click', function(){
     if (!name.value.trim() || !ip.value.trim()) {
-      hint.textContent = 'Servono almeno il nome e l indirizzo sulla rete.';
+      hint.textContent = 'Servono almeno il nome e l’indirizzo sulla rete.';
       hint.style.color = '#e05555';
       return;
     }
@@ -262,7 +262,7 @@ function fillEvents(host, foot){
         t1.textContent = new Date(ev.at).toLocaleString('it-IT');
         var t2 = document.createElement('div');
         t2.className = 'set-hint';
-        t2.textContent = ev.count + ' scatti, intensita ' + ev.peak;
+        t2.textContent = ev.count + ' scatti, intensità ' + ev.peak;
         txt.appendChild(t1);
         txt.appendChild(t2);
 

@@ -13,7 +13,7 @@ import { renderShopping, renderAlarms } from './extra-views.js';
 import { renderRadio } from './radio-view.js';
 import { profiles, profileName } from './profiles.js';
 
-var GIORNI = ['domenica','lunedi','martedi','mercoledi','giovedi','venerdi','sabato'];
+var GIORNI = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
 var MESI = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio',
             'agosto','settembre','ottobre','novembre','dicembre'];
 
@@ -159,7 +159,7 @@ function intercomBar(){
     if (!text) { note.textContent = 'Scrivi prima il messaggio.'; return; }
     sendMessage(text, profileName(currentProfile));
     field.value = '';
-    note.textContent = 'Inviato. Arrivera al prossimo allineamento.';
+    note.textContent = 'Inviato. Arriverà al prossimo allineamento.';
     setTimeout(function(){ note.textContent = ''; }, 5000);
   }
 
@@ -424,7 +424,7 @@ function wallpaperPicker(onApply){
   var esito = document.createElement('div');
   esito.className = 'set-hint';
   add.addEventListener('click', function(){
-    esito.textContent = 'Scegli un immagine...';
+    esito.textContent = 'Scegli un’immagine...';
     pickAndAdd('wallpaper', false).then(function(r){
       if (!r.salvate) { esito.textContent = r.scartate ? 'Immagine non leggibile.' : ''; return; }
       return loadWallpapers().then(function(){
@@ -458,7 +458,7 @@ function photoManager(onApply){
       if (!foto.length) {
         var vuoto = document.createElement('div');
         vuoto.className = 'set-hint';
-        vuoto.textContent = 'Nessuna foto ancora. Finche non ne aggiungi, al posto della cornice resta la stazione meteo.';
+        vuoto.textContent = 'Nessuna foto ancora. Finché non ne aggiungi, al posto della cornice resta la stazione meteo.';
         strip.appendChild(vuoto);
       }
       foto.forEach(function(rec){
@@ -486,7 +486,7 @@ function photoManager(onApply){
   add.style.marginTop = '10px';
   add.textContent = 'Aggiungi foto dalla galleria';
   add.addEventListener('click', function(){
-    esito.textContent = 'Scegli una o piu foto...';
+    esito.textContent = 'Scegli una o più foto...';
     pickAndAdd('photo', true).then(function(r){
       esito.textContent = r.salvate
         ? 'Aggiunte ' + r.salvate + (r.salvate === 1 ? ' foto.' : ' foto.') + (r.scartate ? ' ' + r.scartate + ' non leggibili.' : '')

@@ -47,7 +47,7 @@
   <div id="tablet"></div>
 
   <h2>Prove a mano</h2>
-  <div class="sub">Queste due prove richiedono un tuo tocco, perche Chrome non le permette da solo.</div>
+  <div class="sub">Queste due prove richiedono un tuo tocco, perché Chrome non le permette da solo.</div>
   <button id="prova-voce" type="button">Fai parlare il tablet</button>
   <button id="prova-mic" type="button">Prova il microfono</button>
   <div class="ascolto" id="ascolto"></div>
@@ -126,7 +126,7 @@
     ['Meteo, fornitore 1', 'https://api.open-meteo.com/v1/forecast?latitude=41.9&longitude=12.5&current=temperature_2m'],
     ['Meteo, fornitore 2', 'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=41.9&lon=12.5'],
     ['Meteo, fornitore 3', 'https://wttr.in/41.9,12.5?format=j1'],
-    ['Ricerca citta, di scorta', 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=Roma'],
+    ['Ricerca città, di scorta', 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=Roma'],
     ['Radio', 'https://de1.api.radio-browser.info/json/stations/search?limit=1&name=deejay']
   ];
 
@@ -155,7 +155,7 @@
 
     el = riga('tablet', 'Connessione protetta');
     scrivi(el, window.isSecureContext ? 'ok' : 'ko',
-      window.isSecureContext ? 'si, microfono e fotocamera possono funzionare' : 'no: apri il pannello dall indirizzo https');
+      window.isSecureContext ? 'sì, microfono e fotocamera possono funzionare' : 'no: apri il pannello dall’indirizzo https');
 
     var sr = window.SpeechRecognition || window.webkitSpeechRecognition;
     el = riga('tablet', 'Riconoscimento della voce');
@@ -167,10 +167,10 @@
       var v = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
       var it = v.filter(function(x){ return /^it([-_]|$)/i.test(x.lang); });
       esiti.voceItaliana = it.length > 0;
-      if (!window.speechSynthesis) scrivi(el, 'ko', 'la sintesi vocale non c e');
+      if (!window.speechSynthesis) scrivi(el, 'ko', 'la sintesi vocale non c’è');
       else if (!v.length) scrivi(el, 'avviso', 'elenco delle voci non ancora caricato, ripeti i controlli fra poco');
       else scrivi(el, it.length ? 'ok' : 'ko', it.length ? 'presente: ' + it[0].name
-        : 'manca. Vai in Impostazioni, Lingua e immissione, Sintesi vocale, e scarica l italiano');
+        : 'manca. Vai in Impostazioni, Lingua e immissione, Sintesi vocale, e scarica l’italiano');
     }
     voci();
     if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = voci;
@@ -185,8 +185,8 @@
         esiti[chiave] = p.state;
         var testi = {
           granted: ['ok', 'concesso'],
-          prompt: ['avviso', 'non ancora deciso: verra chiesto al primo uso'],
-          denied: ['ko', 'negato. Si riattiva da Chrome: lucchetto accanto all indirizzo, Impostazioni sito']
+          prompt: ['avviso', 'non ancora deciso: verrà chiesto al primo uso'],
+          denied: ['ko', 'negato. Si riattiva da Chrome: lucchetto accanto all’indirizzo, Impostazioni sito']
         };
         var t = testi[p.state] || ['avviso', p.state];
         scrivi(r, t[0], t[1]);
@@ -232,9 +232,9 @@
     var fare = [];
 
     if (!esiti.internet) {
-      fare.push('Il tablet non e collegato a internet. Controlla il Wi-Fi.');
+      fare.push('Il tablet non è collegato a internet. Controlla il Wi-Fi.');
     } else if (esiti.nuovi && !esiti.vecchi) {
-      fare.push('Il tablet raggiunge solo una parte di internet: la connessione e rimasta incompleta. ' +
+      fare.push('Il tablet raggiunge solo una parte di internet: la connessione è rimasta incompleta. ' +
                 'Spegni e riaccendi il tablet. Se non basta, spegni e riaccendi il Wi-Fi.');
     } else if (!esiti.nuovi && !esiti.vecchi) {
       fare.push('Il tablet non riconosce i certificati dei siti recenti. ' +
@@ -244,10 +244,10 @@
       fare.push('Nessun servizio meteo risponde. Se il problema resta, conviene attivare il servizio di collegamento, che fa da tramite.');
     }
     if (esiti.riconoscimento === false) fare.push('Questo browser non riconosce la voce: usa Chrome.');
-    if (esiti.voceItaliana === false) fare.push('Manca la voce italiana: Impostazioni di Android, Lingua e immissione, Sintesi vocale, scarica l italiano.');
-    if (esiti.mic === 'denied') fare.push('Il microfono e negato per questo sito. In Chrome tocca il lucchetto accanto all indirizzo, poi Impostazioni sito, e consenti il microfono.');
-    if (esiti.cam === 'denied') fare.push('La fotocamera e negata per questo sito. Si riattiva dallo stesso punto del microfono.');
-    if (esiti.batteria && !esiti.batteria.carica) fare.push('Il tablet non e in carica. Su un pannello sempre acceso va tenuto collegato, con il caricatore originale da 2 ampere.');
+    if (esiti.voceItaliana === false) fare.push('Manca la voce italiana: Impostazioni di Android, Lingua e immissione, Sintesi vocale, scarica l’italiano.');
+    if (esiti.mic === 'denied') fare.push('Il microfono è negato per questo sito. In Chrome tocca il lucchetto accanto all’indirizzo, poi Impostazioni sito, e consenti il microfono.');
+    if (esiti.cam === 'denied') fare.push('La fotocamera è negata per questo sito. Si riattiva dallo stesso punto del microfono.');
+    if (esiti.batteria && !esiti.batteria.carica) fare.push('Il tablet non è in carica. Su un pannello sempre acceso va tenuto collegato, con il caricatore originale da 2 ampere.');
 
     var box = document.getElementById('cosa');
     if (!fare.length) {
@@ -277,7 +277,7 @@
     var it = window.speechSynthesis.getVoices().filter(function(x){ return /^it([-_]|$)/i.test(x.lang); })[0];
     if (it) u.voice = it;
     u.onend = function(){ out.textContent = 'Hai sentito la frase? Se no, alza il volume multimediale del tablet.'; };
-    u.onerror = function(e){ out.textContent = 'La voce non e partita: ' + (e.error || 'errore'); };
+    u.onerror = function(e){ out.textContent = 'La voce non è partita: ' + (e.error || 'errore'); };
     out.textContent = 'Parlo...';
     window.speechSynthesis.speak(u);
   });

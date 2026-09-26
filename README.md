@@ -72,13 +72,13 @@ GitHub Pages, non un indirizzo locale.
 
 ## Le tue immagini
 
-Metti i file in `photos/` e `wallpapers/`, poi elencali nel rispettivo
-`manifest.json`. I nomi vanno scritti come sono sul disco, comprese
-maiuscole ed estensione.
+Foto della cornice e sfondi si aggiungono dal tablet stesso, nelle
+impostazioni: il tasto apre la galleria, le immagini vengono ridotte alla
+misura dello schermo e salvate dentro il tablet. Restano su quel tablet e
+non viaggiano verso gli altri dispositivi.
 
-```json
-{ "photos": ["mare.jpg", { "file": "cena.jpg", "caption": "Agosto 2019" }] }
-```
+Si possono ancora mettere immagini nelle cartelle `photos/` e `wallpapers/`
+del progetto, elencandole nel rispettivo `manifest.json`, ma non serve.
 
 ## Microfono e fotocamera
 
@@ -177,19 +177,29 @@ svegliato, chiede al servizio cosa e successo. Cosi evitiamo di cifrare il
 contenuto, che e la parte piu fragile del meccanismo. Insieme all allarme
 viaggia una miniatura, mentre gli scatti pieni restano dentro il tablet.
 
-## Due pannelli allineati
+## Dispositivi collegati
 
-Promemoria e impostazioni vivono su ogni tablet e vengono allineati tramite
-il servizio in `worker/`. Ogni pannello continua a funzionare senza rete e
-si riallinea al rientro, quindi lo Xiaomi puo stare via per giorni. Per ogni
-campo vince la modifica piu recente. Le cancellazioni viaggiano come
-segnaposto, altrimenti un promemoria cancellato qui tornerebbe da la.
+Tablet e telefoni si collegano tutti allo stesso servizio. Promemoria,
+spesa, messaggi, stanze, impostazioni e stato della sentinella si allineano
+fra tutti. Ogni dispositivo funziona anche senza rete e si riallinea quando
+torna.
 
-Indirizzo e parola condivisa si impostano dal pannello Impostazioni, gruppo
-Sincronizzazione, e sono gli unici due valori che restano locali. Lasciandoli
-vuoti tutto resta su questo tablet.
+Regole che evitano i guai trovati in collaudo:
 
-Le istruzioni per pubblicare il servizio sono in cima a `worker/index.js`.
+- si invia solo quando qualcosa cambia su quel dispositivo, mai come
+  conseguenza di un dato appena ricevuto, altrimenti due tablet si
+  rimbalzerebbero gli stessi dati all infinito;
+- un valore di fabbrica non ha marcatura e non puo sovrascrivere una scelta
+  fatta da una persona su un altro dispositivo;
+- la sentinella segue l ordine di arrivo al servizio, non l orologio dei
+  dispositivi, che si sfasa;
+- dimensione dei testi, sfondo, ruolo e credenziali restano propri di ogni
+  schermo.
+
+Ogni dispositivo ha un ruolo, scelto in automatico dalla larghezza dello
+schermo e modificabile nelle impostazioni. Il pannello usa fotocamera, voce
+e sentinella. Il telefono serve a comandare da fuori casa e non accende ne
+fotocamera ne microfono.
 
 ## Meteo con tre fornitori
 
@@ -276,8 +286,9 @@ risposto.
 
 ## Collaudo
 
-Il file `test/qa.js` contiene 48 prove funzionali che coprono tutte le aree
-del pannello. Le istruzioni per eseguirlo sono scritte in cima al file.
+Il file `test/qa.js` contiene piu di novanta prove funzionali che coprono tutte le aree
+del pannello, da eseguire solo su un pannello di prova. Il file `test/servizio.mjs` prova il
+servizio di collegamento sul computer. Le istruzioni per eseguirlo sono scritte in cima al file.
 
 | Area | Prove |
 |---|---|
@@ -435,16 +446,34 @@ Le librerie non ufficiali che imitano quelle app esistono, ma si rompono a
 ogni aggiornamento del produttore e violano le condizioni d uso. Non sono
 una base su cui costruire qualcosa che deve durare.
 
+## Installare il servizio di collegamento
+
+Dal computer, nella cartella del progetto:
+
+```bash
+npx wrangler login
+node worker/installa.mjs
+```
+
+Il primo comando apre il browser per entrare in un account Cloudflare
+gratuito. Il secondo crea il deposito dei dati, genera la parola condivisa e
+le chiavi delle notifiche, pubblica il servizio e stampa un link. Aperto su
+un tablet o un telefono, quel link lo collega in un tocco. Il link e le
+credenziali restano anche in `worker/credenziali.txt`, che non viene mai
+pubblicato.
+
+Le prove del servizio si eseguono con `node test/servizio.mjs`.
+
 ## Stato dei collegamenti
 
-| Dispositivo | Come si raggiunge | Stato |
-|---|---|---|
-| Luci HeySmart | Tuya, dal cloud, da verificare | da collegare |
-| Citofono | Tuya, dal cloud | da collegare |
-| Nest e Spotify | Spotify Web API | da collegare |
-| Broadlink RM4C mini | solo rete locale | in attesa del ponte |
-| Presa D-Link | solo rete locale, protocollo HNAP | in attesa del ponte |
-| Telecamere fisse | solo rete locale | in attesa del ponte, codice gia pronto |
+| Cosa | Stato |
+|---|---|
+| Luci, TV, clima, citofono, Nest | da collegare attraverso Google Home |
+| Broadlink e presa D-Link collegati direttamente | serve il ponte in casa |
+| Telecamere fisse | serve il ponte in casa, codice gia pronto |
+
+Finche un dispositivo non e collegato, la sua casella dice "da collegare" e
+la voce risponde che non e ancora collegato, invece di fingere.
 
 ## Limiti noti del browser
 
@@ -454,3 +483,15 @@ sovrapposto, e le ore di riposo portano lo schermo a nero profondo
 lasciandolo reattivo al tocco. L'opzione di spegnimento vero rilascia il
 blocco e lascia spegnere Android, ma dopo serve il tasto fisico per
 riaccendere.
+
+## Usabilita
+
+- testi e icone piu grandi sui tablet, con dimensione regolabile nelle
+  impostazioni;
+- tasto Indietro in cima a ogni schermata e finestra;
+- la plancia torna alla schermata di riposo dopo un minuto senza tocchi,
+  regolabile; la fotocamera che vede qualcuno non la tiene piu aperta;
+- quando il microfono e in ascolto compare la scritta In ascolto in basso a
+  destra; quando serve un tocco per attivarlo, lo dice;
+- stanze, dispositivi, scene, riquadri della schermata principale, foto e
+  sfondi si cambiano dal pannello, senza toccare il codice.

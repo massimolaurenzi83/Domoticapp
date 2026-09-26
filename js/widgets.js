@@ -15,7 +15,7 @@ import { profileName } from './profiles.js';
 
 export var WIDGETS = {
   meteo:      { label: 'Meteo' },
-  timer:      { label: 'Timer in corso', hint: 'compare solo quando ce n e uno' },
+  timer:      { label: 'Timer in corso', hint: 'compare solo quando ce n’è uno' },
   promemoria: { label: 'Prossimi promemoria' },
   spesa:      { label: 'Lista della spesa' },
   sveglia:    { label: 'Prossima sveglia' },

@@ -107,7 +107,7 @@ function headers(){
 
 function explain(r){
   if (r.status === 401) return 'parola condivisa rifiutata dal servizio';
-  if (r.status === 429) return 'troppi tentativi con una parola sbagliata, riprova fra un quarto d ora';
+  if (r.status === 429) return 'troppi tentativi con una parola sbagliata, riprova fra un quarto d’ora';
   if (r.status === 500) return 'il servizio non ha ancora la parola condivisa impostata';
   return 'il servizio ha risposto ' + r.status;
 }

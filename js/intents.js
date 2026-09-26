@@ -9,9 +9,9 @@ import { devices, speakers, rooms, roomName, findDevice, setDevice, runScene, sc
 // comanda ancora davvero. Meglio dirlo che fingere di averlo fatto.
 var NOT_YET = {
   luci:     'Le luci non sono ancora collegate al pannello.',
-  tv:       'Il televisore non e ancora collegato al pannello.',
-  musica:   'La musica sui Nest non e ancora collegata al pannello.',
-  citofono: 'Il citofono non e ancora collegato al pannello.'
+  tv:       'Il televisore non è ancora collegato al pannello.',
+  musica:   'La musica sui Nest non è ancora collegata al pannello.',
+  citofono: 'Il citofono non è ancora collegato al pannello.'
 };
 
 function notYet(cosa, tab){
@@ -35,13 +35,13 @@ var SINONIMI = {
 function roomIn(text){
   var ordinate = rooms.slice().sort(function(a, b){ return b.name.length - a.name.length; });
   for (var i = 0; i < ordinate.length; i++) {
-    var nome = String(ordinate[i].name || '').toLowerCase().trim();
+    var nome = fold(ordinate[i].name).trim();
     if (nome && text.indexOf(nome) !== -1) return ordinate[i].id;
   }
   for (var parola in SINONIMI) {
     if (text.indexOf(parola) === -1) continue;
     for (var k = 0; k < rooms.length; k++) {
-      if (String(rooms[k].name).toLowerCase().trim() === SINONIMI[parola]) return rooms[k].id;
+      if (fold(rooms[k].name).trim() === SINONIMI[parola]) return rooms[k].id;
     }
   }
   return null;
@@ -63,8 +63,17 @@ function where(roomId){
 }
 
 // Restituisce { reply, screen } oppure null se non ha capito.
+// Toglie gli accenti per confrontare: il riconoscimento vocale scrive
+// "giù" e "lunedì", mentre le parole chiave sono scritte senza.
+function fold(t){
+  return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 export function runCommand(text){
   if (!text) return { reply: 'Dimmi pure.', screen: 'control' };
+  // Il testo originale serve per salvare la spesa con gli accenti giusti.
+  var raw = text;
+  text = fold(text);
 
   var room = roomIn(text);
   var wantsOn = has(text, ['accendi', 'accendere', 'attiva', 'apri la luce']);
@@ -87,23 +96,23 @@ export function runCommand(text){
     if (has(text, ['cosa', 'leggimi', 'quanti', 'mostrami', 'fammi vedere'])) {
       var n = pendingCount();
       return {
-        reply: n ? 'Sulla lista ci sono ' + n + (n === 1 ? ' cosa.' : ' cose.') : 'La lista e vuota.',
+        reply: n ? 'Sulla lista ci sono ' + n + (n === 1 ? ' cosa.' : ' cose.') : 'La lista è vuota.',
         screen: 'control', tab: 'spesa'
       };
     }
     var prima = pendingCount();
-    addItem(text);
+    addItem(raw);
     // Se dalla frase non si ricava niente da comprare, lo si dice.
     if (pendingCount() === prima) return { reply: 'Cosa devo aggiungere alla spesa?', screen: 'control', tab: 'spesa' };
     return { reply: 'Aggiunto alla spesa.', screen: 'control', tab: 'spesa', refresh: true };
   }
 
   if (has(text, ['ricordami', 'promemoria', 'segna', 'annota', 'appunta', 'metti in agenda'])) {
-    return { reply: null, screen: 'control', tab: 'agenda', reminder: text };
+    return { reply: null, screen: 'control', tab: 'agenda', reminder: raw };
   }
 
   if (has(text, ['agenda', 'impegni', 'che cosa ho', 'cosa ho oggi', 'appuntamenti'])) {
-    return { reply: 'Ecco l agenda.', screen: 'control', tab: 'agenda' };
+    return { reply: 'Ecco l’agenda.', screen: 'control', tab: 'agenda' };
   }
 
   if (has(text, ['meteo', 'che tempo', 'tempo fa', 'temperatura', 'previsioni'])) {
@@ -117,7 +126,7 @@ export function runCommand(text){
 
   // Una scena si chiama per nome, per esempio "cena" o "buonanotte".
   var scena = firstOf(scenes, function(sc){
-    var nome = String(sc.name || '').toLowerCase().trim();
+    var nome = fold(sc.name).trim();
     return nome && text.indexOf(nome) !== -1;
   });
   if (!scena && has(text, ['buona notte'])) scena = firstOf(scenes, function(sc){ return sc.id === 'buonanotte'; });

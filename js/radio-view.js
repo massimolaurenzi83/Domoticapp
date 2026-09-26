@@ -27,7 +27,7 @@ export function renderRadio(body){
   var favs = favourites();
   if (favs.length) fill(grid, favs, body, 'Le tue preferite');
   else {
-    loading(grid, 'Cerco le stazioni piu ascoltate in Italia...');
+    loading(grid, 'Cerco le stazioni più ascoltate in Italia...');
     topStations('IT', 30)
       .then(function(list){ fill(grid, list, body); })
       .catch(function(){ loading(grid, 'Archivio non raggiungibile. Controlla la rete e riprova.'); });
