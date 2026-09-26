@@ -113,7 +113,7 @@ const frasi = [
   ['ricordami di comprare il pane domani alle 8', r => r && r.reminder],
   ['aggiungi il latte alla lista della spesa', r => r && r.tab === 'spesa'],
   ['timer di dieci minuti', r => r && r.reply.indexOf('Timer') === 0],
-  ['balla la samba', r => r === null]
+  ['balla la samba', r => r && r.google === 'balla la samba']
 ];
 // Le frasi si provano come se Google Home fosse collegato, per verificare
 // che il pannello capisca cosa fare.
@@ -122,8 +122,9 @@ let capite = 0;
 const mancate = [];
 frasi.forEach(([f, check]) => { if (check(intents.runCommand(f))) capite++; else mancate.push(f); });
 dev.setLive(false);
-prova('Voce', 'le frasi di prova vengono interpretate correttamente',
+prova('Voce', 'le frasi di prova vengono interpretate correttamente, e quelle sconosciute vanno a Google',
   capite === frasi.length, capite + ' su ' + frasi.length + (mancate.length ? ', non capite: ' + mancate.join(' / ') : ''));
+prova('Voce', 'senza Google collegato una frase sconosciuta resta non capita', intents.runCommand('balla la samba') === null);
 
 prova('Voce', 'senza collegamento la voce non finge di aver acceso',
   (() => { const r = intents.runCommand('accendi la luce in cucina'); return r && r.offline === true; })());
@@ -583,6 +584,86 @@ prova('Foto', 'si possono togliere', (await gal.list('photo')).every(x => x.id !
 const voce = await import('/js/voice.js');
 prova('Voce', 'la diagnostica dice se manca la voce italiana', voce.speechStatus().indexOf('Risposta parlata') === 0,
   voce.speechStatus());
+
+// ---------- 29. Google Home, con un Google finto ----------
+{
+  const gmod = await import('/js/google.js');
+  const dmod = await import('/js/devices.js');
+  const imod = await import('/js/intents.js');
+  const vecchioFetch = window.fetch;
+  const vecchi = { url: cfg.settings.syncUrl, token: cfg.settings.syncToken };
+  const inviate = [];
+  let rispostaFinta = { ok: true, risposta: 'Ok, accendo la luce.' };
+  let statoFinto = 200;
+  window.fetch = async (u, o) => {
+    u = String(u);
+    if (u.indexOf('https://finto.test/') !== 0) return vecchioFetch(u, o);
+    if (u.endsWith('/google/stato')) return new Response(JSON.stringify({ collegato: true }), { status: 200 });
+    if (u.endsWith('/google')) {
+      inviate.push(JSON.parse(o.body).testo);
+      return new Response(JSON.stringify(rispostaFinta), { status: statoFinto });
+    }
+    return new Response('{}', { status: 404 });
+  };
+  cfg.settings.syncUrl = 'https://finto.test';
+  cfg.settings.syncToken = 'prova';
+  const esiti = [];
+  dmod.onSendResult((d, ok, t) => esiti.push({ id: d.id, ok, t }));
+  const attendi = () => new Promise(r => setTimeout(r, 80));
+
+  try {
+    const pronto = await gmod.checkGoogle();
+    dmod.setLive(pronto);
+    prova('Google', 'il pannello legge dal servizio che Google Home è collegato', pronto === true && gmod.googleStatus().indexOf('collegato') === 0, gmod.googleStatus());
+
+    const luce = dmod.findDevice('luce-soggiorno');
+    const primaLuce = luce.on;
+    dmod.toggle('luce-soggiorno');
+    await attendi();
+    prova('Google', 'toccare una luce manda a Google la frase con il suo nome in Google Home',
+      inviate[inviate.length - 1] === (primaLuce ? 'spegni' : 'accendi') + ' luce soggiorno', inviate.join(' | '));
+    prova('Google', 'se Google conferma, la casella resta cambiata', luce.on === !primaLuce);
+
+    rispostaFinta = { ok: true, risposta: 'Mi dispiace, non ho trovato nessun dispositivo con quel nome.' };
+    const statoPrima = luce.on;
+    dmod.toggle('luce-soggiorno');
+    await attendi();
+    prova('Google', 'se Google dice di non aver trovato il dispositivo, la casella torna com era e lo si dice',
+      luce.on === statoPrima && esiti.length && esiti[esiti.length - 1].ok === false, JSON.stringify(esiti[esiti.length - 1]));
+
+    rispostaFinta = { ok: false, error: 'autorizzazione Google scaduta', auth: true };
+    statoFinto = 502;
+    dmod.toggle('luce-soggiorno');
+    await attendi();
+    prova('Google', 'con il permesso Google scaduto il pannello dice che va rinnovato',
+      luce.on === statoPrima && /rinnovare/.test(esiti[esiti.length - 1].t), esiti[esiti.length - 1].t);
+    statoFinto = 200;
+    rispostaFinta = { ok: true, risposta: '' };
+
+    const tv = dmod.findDevice('tv');
+    prova('Google', 'senza nome in Google Home la frase si compone con tipo e stanza',
+      dmod.googlePhrase(Object.assign({}, tv, { google: '' }), 'accendi') === 'accendi televisore soggiorno');
+    prova('Google', 'il citofono si chiede con apri', dmod.googlePhrase(dmod.findDevice('citofono'), 'accendi') === 'apri citofono');
+
+    const ignoto = imod.runCommand('che ore sono a new york');
+    prova('Google', 'una frase che il pannello non conosce va a Google', ignoto && ignoto.google === 'che ore sono a new york');
+    const lav = imod.runCommand('accendi la luce della lavanderia');
+    prova('Google', 'un dispositivo che il pannello non ha si chiede a Google', lav && !!lav.google);
+    const mus = imod.runCommand('metti la musica in cucina');
+    prova('Google', 'la musica resta onesta: non passa da questa strada', mus && mus.offline === true);
+    prova('Google', 'gli altoparlanti restano da collegare anche con Google collegato', dmod.notConnected(dmod.findDevice('nest-cucina')) === true);
+    prova('Google', 'le luci invece si comandano', dmod.notConnected(luce) === false);
+
+    const r = await gmod.sendToGoogle('che ore sono');
+    prova('Google', 'la risposta di Google arriva al pannello', r.ok === true);
+  } finally {
+    window.fetch = vecchioFetch;
+    cfg.settings.syncUrl = vecchi.url;
+    cfg.settings.syncToken = vecchi.token;
+    dmod.setLive(false);
+    await gmod.checkGoogle();
+  }
+}
 
 // ---------- pulizia finale ----------
 // I dati inventati dal collaudo non devono restare sul pannello.

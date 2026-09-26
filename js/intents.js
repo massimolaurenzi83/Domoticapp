@@ -2,15 +2,17 @@
 //
 // Funziona per parole chiave, senza servizi esterni: riconosce cosa fare
 // e in quale stanza, e restituisce la frase di risposta da pronunciare.
+// Quando Google Home e collegato, le frasi che il pannello non conosce
+// vengono girate a Google Assistant cosi come sono state dette.
 
-import { devices, speakers, rooms, roomName, findDevice, setDevice, runScene, scenes, isLive } from './devices.js';
+import { devices, rooms, roomName, setDevice, toggle, runScene, scenes, isLive } from './devices.js';
 
 // Risposta onesta quando il comando riguarda qualcosa che il pannello non
 // comanda ancora davvero. Meglio dirlo che fingere di averlo fatto.
 var NOT_YET = {
   luci:     'Le luci non sono ancora collegate al pannello.',
   tv:       'Il televisore non è ancora collegato al pannello.',
-  musica:   'La musica sui Nest non è ancora collegata al pannello.',
+  musica:   'La musica sui Nest non è ancora collegata al pannello: per ora chiedila direttamente al Nest.',
   citofono: 'Il citofono non è ancora collegato al pannello.'
 };
 
@@ -121,7 +123,10 @@ export function runCommand(text){
 
   if (has(text, ['citofono', 'portone', 'apri il cancello', 'apri giu'])) {
     if (!isLive()) return notYet('citofono');
-    return { reply: 'Apro il portone.', screen: 'control', device: 'citofono' };
+    var cit = firstOf(devices, function(d){ return d.kind === 'intercom'; });
+    if (!cit) return { reply: 'Non ho il citofono fra i dispositivi.', screen: 'control' };
+    toggle(cit.id);
+    return { reply: 'Chiedo a Google di aprire il portone.', screen: 'control', device: 'citofono' };
   }
 
   // Una scena si chiama per nome, per esempio "cena" o "buonanotte".
@@ -137,17 +142,9 @@ export function runCommand(text){
   }
 
   if (has(text, ['musica', 'spotify', 'canzone', 'suona', 'metti su'])) {
-    if (!isLive()) return notYet('musica', 'musica');
-    if (has(text, ['ferma', 'basta', 'stop', 'silenzio', 'spegni'])) {
-      for (var p = 0; p < speakers.length; p++) setDevice(speakers[p].id, false, false);
-      return { reply: 'Fermo la musica.', screen: 'control', tab: 'musica' };
-    }
-    var sp = room ? firstOf(speakers, function(x){ return x.room === room; }) : null;
-    if (sp) {
-      setDevice(sp.id, true);
-      return { reply: 'Metto la musica' + where(room) + '.', screen: 'control', tab: 'musica' };
-    }
-    return { reply: 'In quale stanza?', screen: 'control', tab: 'musica' };
+    // Google non accetta comandi di musica da questa strada: servira il
+    // collegamento con Spotify.
+    return notYet('musica', 'musica');
   }
 
   if (wantsOn || wantsOff) {
@@ -174,9 +171,17 @@ export function runCommand(text){
       setDevice(scelto.id, !!wantsOn);
       return { reply: (wantsOn ? 'Accendo ' : 'Spengo ') + nomeTipo + where(scelto.room) + '.', screen: 'control' };
     }
+    // Un dispositivo che il pannello non ha, Google Home magari si: si
+    // chiede a lui con la frase originale.
+    if (isLive() && (!candidati.length || !room && has(text, ['della', 'dello', 'del ', 'nella', 'nel ']))) return askGoogle(raw);
     if (!candidati.length) return { reply: 'Non ho ' + nomeTipo.replace(/^(il|la) /, '') + ' fra i dispositivi.', screen: 'control' };
     return { reply: 'In quale stanza?', screen: 'control' };
   }
 
+  if (isLive()) return askGoogle(raw);
   return null;
+}
+
+function askGoogle(frase){
+  return { reply: null, screen: 'control', google: frase };
 }

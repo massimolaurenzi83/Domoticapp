@@ -163,6 +163,41 @@ export default {
       return json({ error: 'nessuna fonte raggiungibile' }, 502);
     }
 
+    // ---------- Google Home ----------
+
+    // I comandi per Google Home passano da un piccolo programma su Vercel,
+    // perche Google li accetta solo con un protocollo che qui non si puo
+    // usare. Il tablet parla solo con questo servizio; l indirizzo e la
+    // parola del programma su Vercel restano qui e non escono mai.
+    if (url.pathname === '/google/stato') {
+      return json({ collegato: !!(env.GOOGLE_RELAY_URL && env.GOOGLE_RELAY_TOKEN) });
+    }
+
+    if (url.pathname === '/google' && request.method === 'POST') {
+      if (!env.GOOGLE_RELAY_URL || !env.GOOGLE_RELAY_TOKEN) {
+        return json({ ok: false, error: 'Google Home non ancora collegato' }, 503);
+      }
+      var richiesta = null;
+      try { richiesta = await request.json(); } catch (e) {}
+      var testo = String((richiesta && richiesta.testo) || '').trim();
+      if (!testo || testo.length > 200) {
+        return json({ ok: false, error: 'frase mancante o troppo lunga' }, 400);
+      }
+      try {
+        var r = await fetch(env.GOOGLE_RELAY_URL.replace(/\/+$/, '') + '/api/comando', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Relay-Token': env.GOOGLE_RELAY_TOKEN },
+          body: JSON.stringify({ testo: testo })
+        });
+        var esito = null;
+        try { esito = await r.json(); } catch (e) {}
+        if (!esito) return json({ ok: false, error: 'risposta non valida dal ponte Google' }, 502);
+        return json(esito, r.ok ? 200 : (r.status === 401 ? 502 : r.status));
+      } catch (e) {
+        return json({ ok: false, error: 'ponte Google non raggiungibile' }, 502);
+      }
+    }
+
     // ---------- chiavi delle luci ----------
 
     // Le chiavi entrano e non escono piu: nessuna richiesta puo rileggerle.

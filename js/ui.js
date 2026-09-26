@@ -288,7 +288,8 @@ function tile(item, onChange){
   var bridgeMissing = item.kind === 'dev' && needsBridge(d);
   var blocked = item.kind === 'dev' ? notConnected(d) : !isLive();
   var blockedText = bridgeMissing ? 'serve il ponte' : 'da collegare';
-  var blockedTap = bridgeMissing ? 'raggiungibile solo da casa' : 'si collega tramite Google Home';
+  var blockedTap = bridgeMissing ? 'raggiungibile solo da casa'
+    : (d.kind === 'speaker' ? 'la musica arriverà con Spotify' : 'si collega tramite Google Home');
 
   if (item.kind === 'scene' && blocked) {
     var sc = document.createElement('div');

@@ -1,0 +1,6 @@
+{
+  "regions": ["fra1"],
+  "functions": {
+    "api/comando.js": { "maxDuration": 20 }
+  }
+}

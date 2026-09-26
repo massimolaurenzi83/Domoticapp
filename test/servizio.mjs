@@ -149,6 +149,45 @@ const env = { CASA: kv(), CASA_TOKEN: TOKEN };
   prova('la chiave pubblica esposta ai telefoni e quella giusta', m && m[4] === VAPID_PUBLIC);
 }
 
+// 8b. Google Home: tramite verso il programma su Vercel, senza rete vera
+{
+  const st0 = await (await W.fetch(req('/google/stato', { token: TOKEN }), env)).json();
+  prova('senza ponte Google il servizio dice non collegato', st0.collegato === false);
+  const r0 = await W.fetch(req('/google', { method: 'POST', token: TOKEN, body: { testo: 'accendi la luce' } }), env);
+  prova('senza ponte Google un comando riceve 503', r0.status === 503);
+
+  const envG = Object.assign({}, env, { GOOGLE_RELAY_URL: 'https://ponte.test/', GOOGLE_RELAY_TOKEN: 'segreto-ponte' });
+  const st1 = await (await W.fetch(req('/google/stato', { token: TOKEN }), envG)).json();
+  prova('con il ponte impostato il servizio dice collegato', st1.collegato === true);
+
+  const veroFetch = globalThis.fetch;
+  let visto = null;
+  globalThis.fetch = async (u, o) => {
+    visto = { u, token: o.headers['X-Relay-Token'], body: JSON.parse(o.body) };
+    return new Response(JSON.stringify({ ok: true, risposta: 'Ok, accendo la luce.', voce: true }), { status: 200 });
+  };
+  const r1 = await W.fetch(req('/google', { method: 'POST', token: TOKEN, body: { testo: 'accendi la luce' } }), envG);
+  const j1 = await r1.json();
+  prova('il comando arriva al ponte con la sua parola',
+    visto && visto.u === 'https://ponte.test/api/comando' && visto.token === 'segreto-ponte' && visto.body.testo === 'accendi la luce');
+  prova('la risposta di Google torna al pannello', r1.ok && j1.ok && j1.risposta === 'Ok, accendo la luce.');
+
+  globalThis.fetch = async () => new Response(JSON.stringify({ ok: false, error: 'autorizzazione Google scaduta', auth: true }), { status: 401 });
+  const r2 = await W.fetch(req('/google', { method: 'POST', token: TOKEN, body: { testo: 'accendi' } }), envG);
+  const j2 = await r2.json();
+  prova('un permesso Google scaduto non sembra una parola di casa sbagliata', r2.status === 502 && j2.auth === true);
+
+  globalThis.fetch = async () => { throw new Error('rete giu'); };
+  const r3 = await W.fetch(req('/google', { method: 'POST', token: TOKEN, body: { testo: 'accendi' } }), envG);
+  prova('ponte irraggiungibile: errore chiaro', r3.status === 502);
+  globalThis.fetch = veroFetch;
+
+  const r4 = await W.fetch(req('/google', { method: 'POST', token: TOKEN, body: { testo: 'x'.repeat(201) } }), envG);
+  prova('frasi troppo lunghe rifiutate', r4.status === 400);
+  const r5 = await W.fetch(req('/google', { method: 'POST', token: 'sbagliata', body: { testo: 'accendi' } }), envG);
+  prova('senza parola di casa niente comandi a Google', r5.status === 401);
+}
+
 // 8. meteo di rimbalzo, dalla rete vera
 {
   try {

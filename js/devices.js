@@ -1,5 +1,6 @@
 import { sendViaBridge, bridgeConfigured } from './bridge.js';
 import { settings, save } from './config.js';
+import { sendToGoogle } from './google.js';
 
 // Stanze, dispositivi e scene di casa.
 //
@@ -233,12 +234,55 @@ function send(dev, action){
     sendViaBridge(via, dev.id, action).then(function(ok){ note(ok ? 'inviato' : 'ponte non raggiungibile'); });
     return;
   }
-  note(LIVE ? '' : 'non inviato, Google Home non ancora collegato');
+  if (!LIVE || !viaGoogle(dev)) { note('non inviato, Google Home non ancora collegato'); return; }
+
+  var frase = googlePhrase(dev, action);
+  var prima = !dev.on;
+  sendToGoogle(frase).then(function(r){
+    var male = r.ok && sembraRifiuto(r.risposta);
+    if (r.ok && !male) { note('inviato: ' + frase); report(dev, true, r.risposta); return; }
+    // Il comando non e andato: la casella torna com era, e si dice perche.
+    dev.on = prima;
+    var perche = male ? 'Google ha risposto: ' + r.risposta : r.errore;
+    note('non riuscito: ' + perche);
+    report(dev, false, perche);
+  });
 }
 
-// Finche non c e un collegamento vero con Google Home, i comandi non
-// escono dal pannello. Il pannello lo deve dire invece di mostrare caselle
-// che si accendono solo sullo schermo.
+// La frase per Google usa il nome del dispositivo in Google Home. Senza
+// nome, si compone con tipo e stanza, come la si direbbe a voce.
+export function googlePhrase(dev, action){
+  var nome = String(dev.google || '').trim();
+  if (!nome) {
+    var t = TYPES[dev.type] ? TYPES[dev.type].label.toLowerCase() : 'dispositivo';
+    nome = t + (dev.room ? ' ' + roomName(dev.room).toLowerCase() : '');
+  }
+  if (dev.kind === 'intercom') return 'apri ' + nome;
+  return action + ' ' + nome;
+}
+
+// Google a volte risponde bene al collegamento ma dice di non aver fatto
+// niente: si riconoscono le risposte tipiche per non fingere un successo.
+export function sembraRifiuto(testo){
+  var t = String(testo || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return /non (ho trovato|trovo|riesco|sono riuscit|posso|e possibile|e disponibile|e raggiungibile|risponde)|mi dispiace|purtroppo|scusa|non so (come|quale)|quale (dispositivo|luce)|dispositivo non/.test(t);
+}
+
+// Gli altoparlanti non si comandano da qui: la musica sui Nest passa da
+// Spotify, che e un collegamento a parte.
+function viaGoogle(dev){ return dev.via === 'google' && dev.kind !== 'speaker'; }
+
+var resultWatchers = [];
+export function onSendResult(fn){ resultWatchers.push(fn); }
+function report(dev, ok, testo){
+  for (var i = 0; i < resultWatchers.length; i++) {
+    try { resultWatchers[i](dev, ok, testo); } catch (e) {}
+  }
+}
+
+// Finche il servizio non conferma il collegamento con Google Home, i
+// comandi non escono dal pannello. Il pannello lo deve dire invece di
+// mostrare caselle che si accendono solo sullo schermo.
 var LIVE = false;
 
 export function setLive(value){ LIVE = !!value; }
@@ -248,6 +292,7 @@ export function notConnected(device){
   if (!device) return true;
   if (needsBridge(device)) return true;
   if (LOCAL_ONLY_VIA[device.via]) return false;
+  if (device.kind === 'speaker') return true;
   return !LIVE;
 }
 

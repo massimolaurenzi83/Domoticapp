@@ -6,3 +6,9 @@ Thumbs.db
 worker/credenziali.txt
 worker/.wrangler/
 .wrangler/
+
+# Permessi Google: restano solo sul computer
+google/client_secret*.json
+google/credenziali.txt
+google/relay/.vercel/
+.vercel/

@@ -33,7 +33,8 @@ import { registerWorker, enableNotifications, notificationsActive, pushBlockedRe
 import { micOn, camOn, setMic, setCam, silenceAll, onPrivacyChange, privacySummary } from './privacy.js';
 import { setSyncConfig, startSync, syncConfigured, syncStatus, touch } from './sync.js';
 import { setIntercomHandler } from './intercom.js';
-import { commandLog, onToggle } from './devices.js';
+import { commandLog, onToggle, onSendResult, setLive, isLive } from './devices.js';
+import { checkGoogle, googleStatus, sendToGoogle } from './google.js';
 import { loadWallpapers, applyWallpaper } from './wallpaper.js';
 import { startVoice, stopVoice, say, voiceAvailable, voiceDiagnostics, captureNext, primeSpeech, speechStatus, voiceListening } from './voice.js';
 import { runCommand } from './intents.js';
@@ -222,6 +223,7 @@ function updateDiagnostics(){
     simulationDiagnostics(),
     alarmDiagnostics(),
     'Allineamento: ' + (syncConfigured() ? syncStatus() : 'solo questo tablet'),
+    'Google Home: ' + googleStatus(),
     'Notifiche: ' + (notificationsActive() ? 'attive' : (pushBlockedReason() || 'da attivare')),
     'Telefono: ' + (isIOS() ? ('iPhone, ' + (isStandalone() ? 'aperta dalla schermata Home' : 'aperta dentro il browser')) : 'Android o altro'),
     'Foto caricate: ' + photoCount(),
@@ -365,6 +367,7 @@ function boot(){
   // Fotocamera e voce le accende applyPrivacy, gia chiamata dal pannello
   // della privacy: chiamarle anche qui apriva due flussi video.
   onToggle(noteHabit);
+  setupGoogle();
 
   applyScale();
   unlockOnFirstTouch();
@@ -574,9 +577,12 @@ function setupVoice(){
 
       if (captured) { saveDictated(rest); return; }
 
+      lastVoiceAt = Date.now();
       var result = runCommand(rest);
 
       if (result && result.reminder) { saveDictated(rest); return; }
+
+      if (result && result.google) { askGoogleAloud(rest, result.google); return; }
 
       if (!result) {
         showVoiceBar(rest, 'Non ho capito.');
@@ -766,6 +772,48 @@ function saveDictated(phrase){
   var reply = 'Segnato: ' + parsed.text + ', ' + describeWhen(parsed.when ? parsed.when.getTime() : null) + '.';
   showVoiceBar(phrase, reply);
   if (settings.voiceReply) say(reply);
+}
+
+// ---------- Google Home ----------
+
+var lastVoiceAt = 0;
+
+// Chiede al servizio se Google Home e collegato e accende le caselle di
+// conseguenza. Si ripete ogni cinque minuti: se il collegamento viene
+// installato dal computer, i tablet se ne accorgono da soli.
+function refreshGoogle(){
+  var prima = isLive();
+  return checkGoogle().then(function(ok){
+    setLive(ok);
+    if (ok !== prima) renderCurrentTab();
+  });
+}
+
+// Una frase che il pannello non conosce va a Google Assistant, e la sua
+// risposta si legge e si dice.
+function askGoogleAloud(heard, frase){
+  showVoiceBar(heard, 'Lo chiedo a Google...', 25000);
+  sendToGoogle(frase).then(function(r){
+    var reply = r.ok
+      ? (r.risposta || 'Fatto.')
+      : 'Google non ha risposto: ' + r.errore + '.';
+    showVoiceBar(heard, reply, 12000);
+    if (settings.voiceReply) say(reply);
+    renderCurrentTab();
+    updateDiagnostics();
+  });
+}
+
+function setupGoogle(){
+  onSendResult(function(dev, ok, testo){
+    if (ok) return;
+    renderCurrentTab();
+    var reply = (dev.name || 'Il dispositivo') + ': comando non riuscito. ' + testo;
+    showVoiceBar('', reply, 12000);
+    if (settings.voiceReply && Date.now() - lastVoiceAt < 30000) say(reply);
+  });
+  refreshGoogle();
+  setInterval(refreshGoogle, 5 * 60000);
 }
 
 function showVoiceBar(heard, reply, durata){

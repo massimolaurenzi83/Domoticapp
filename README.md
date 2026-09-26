@@ -468,12 +468,36 @@ Le prove del servizio si eseguono con `node test/servizio.mjs`.
 
 | Cosa | Stato |
 |---|---|
-| Luci, TV, clima, citofono, Nest | da collegare attraverso Google Home |
+| Luci, TV, clima, prese | attraverso Google Home, dopo `google/GUIDA.md` |
+| Citofono | si prova attraverso Google Home, che a volte rifiuta di aprire a distanza |
+| Musica sui Nest | da collegare con Spotify |
 | Broadlink e presa D-Link collegati direttamente | serve il ponte in casa |
 | Telecamere fisse | serve il ponte in casa, codice gia pronto |
 
 Finche un dispositivo non e collegato, la sua casella dice "da collegare" e
 la voce risponde che non e ancora collegato, invece di fingere.
+
+## Google Home
+
+Il pannello manda a Google Assistant, a nome tuo, le stesse frasi che
+diresti a un Nest, per esempio "accendi luce soggiorno". La strada e:
+
+pannello -> servizio di casa su Cloudflare -> programma su Vercel -> Google
+
+Il programma su Vercel (`google/relay`) serve perche Google accetta questi
+comandi solo con il protocollo gRPC, che Cloudflare non sa parlare. Il
+permesso di Google resta nelle variabili di Vercel e in
+`google/credenziali.txt` sul computer; i tablet non lo vedono mai.
+
+- Si installa con `google/GUIDA.md` e `node google/autorizza.mjs`.
+- Ogni casella usa il campo "Nome in Google Home" del dispositivo.
+- Se Google risponde che non ha trovato il dispositivo, la casella torna
+  com'era e il pannello riporta la risposta.
+- Le frasi che il pannello non conosce vengono girate a Google, e la
+  risposta si legge e si dice.
+- Google concede circa cinquecento comandi al giorno: per una casa bastano.
+
+Le prove del programma si eseguono con `node test/ponte-google.mjs`.
 
 ## Limiti noti del browser
 
