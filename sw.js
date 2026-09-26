@@ -7,7 +7,7 @@
 // Su iPhone le notifiche funzionano solo se la pagina e stata aggiunta
 // alla schermata Home: e una regola di Apple, non una nostra scelta.
 
-var CACHE = 'casa-v1';
+var CACHE = 'casa-v2';
 
 var CORE = [
   './',
@@ -46,6 +46,12 @@ self.addEventListener('fetch', function(ev){
   var req = ev.request;
   if (req.method !== 'GET') return;
   if (req.url.indexOf('http') !== 0) return;
+
+  // Le chiamate verso altri siti, come i servizi meteo, non ci riguardano:
+  // vanno lasciate passare intatte. Intercettarle significava restituire la
+  // pagina del pannello al posto dei dati, e ogni fornitore falliva senza
+  // che si capisse perche.
+  if (req.url.indexOf(self.registration.scope) !== 0) return;
 
   // Per il codice del pannello chiediamo sempre conferma al server, cosi
   // un aggiornamento pubblicato arriva al tablet senza dover svuotare

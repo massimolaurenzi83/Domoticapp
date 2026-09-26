@@ -116,6 +116,8 @@ function tick(){
 
 // ---------- meteo ----------
 
+var lastWeatherError = '';
+
 function refreshWeather(){
   fetchWeather().then(function(w){
     document.getElementById('weather-temp').textContent = w.temp + '\u00B0';
@@ -123,7 +125,8 @@ function refreshWeather(){
     if (w.min !== null && w.max !== null) line += '  ' + w.min + '\u00B0 / ' + w.max + '\u00B0';
     document.getElementById('weather-desc').textContent = line;
     document.getElementById('weather-place').textContent = settings.placeName;
-  }).catch(function(){
+  }).catch(function(e){
+    lastWeatherError = (e && e.message) ? e.message : 'errore sconosciuto';
     document.getElementById('weather-desc').textContent = 'nessun servizio meteo raggiungibile';
   });
 }
@@ -154,7 +157,7 @@ function updateDiagnostics(){
     screenDiagnostics(),
     presenceDiagnostics(),
     voiceDiagnostics(),
-    weatherDiagnostics(),
+    weatherDiagnostics() + (lastWeatherError ? ' | ultimo errore: ' + lastWeatherError : ''),
     bridgeDiagnostics(),
     backupDiagnostics(),
     simulationDiagnostics(),
