@@ -665,6 +665,88 @@ prova('Voce', 'la diagnostica dice se manca la voce italiana', voce.speechStatus
   }
 }
 
+// ---------- 30. Spotify, con uno Spotify finto ----------
+{
+  const smod = await import('/js/spotify.js');
+  const dmod = await import('/js/devices.js');
+  const imod = await import('/js/intents.js');
+  const mv = await import('/js/music-view.js');
+  const vecchioFetch = window.fetch;
+  const vecchi = { url: cfg.settings.syncUrl, token: cfg.settings.syncToken };
+  const comandi = [];
+  let collegatoFinto = false;
+  window.fetch = async (u, o) => {
+    u = String(u);
+    if (u.indexOf('https://finto.test/') !== 0) return vecchioFetch(u, o);
+    if (u.endsWith('/spotify/stato')) {
+      if (!collegatoFinto) return new Response(JSON.stringify({ collegato: false }), { status: 200 });
+      return new Response(JSON.stringify({ collegato: true, suona: true, titolo: 'Azzurro', artista: 'Paolo Conte',
+        dispositivo: 'Nest Cucina', dispositivoId: 'd1', volume: 40,
+        dispositivi: [{ id: 'd1', nome: 'Nest Cucina', attivo: true, volume: 40 }, { id: 'd2', nome: 'Soggiorno speaker', attivo: false }] }), { status: 200 });
+    }
+    if (u.endsWith('/spotify/playlist')) return new Response(JSON.stringify({ ok: true, playlist: [{ nome: 'Cena', uri: 'spotify:playlist:cena' }, { nome: 'Rock anni 80', uri: 'spotify:playlist:rock' }] }), { status: 200 });
+    if (u.endsWith('/spotify/comando')) { comandi.push(JSON.parse(o.body)); return new Response(JSON.stringify({ ok: true }), { status: 200 }); }
+    if (u.endsWith('/google/stato')) return new Response(JSON.stringify({ collegato: false }), { status: 200 });
+    return new Response('{}', { status: 404 });
+  };
+  cfg.settings.syncUrl = 'https://finto.test';
+  cfg.settings.syncToken = 'prova';
+
+  try {
+    await smod.checkSpotify();
+    prova('Spotify', 'senza permesso il pannello sa che Spotify non è collegato', smod.spotifyReady() === false);
+    const off = imod.runCommand('metti la musica in cucina');
+    prova('Spotify', 'senza Spotify la voce lo dice onestamente', off && off.offline === true);
+
+    collegatoFinto = true;
+    await smod.checkSpotify();
+    await smod.loadPlaylists();
+    prova('Spotify', 'con il permesso il pannello legge cosa suona', smod.spotifyReady() && smod.spotifyState().titolo === 'Azzurro');
+    prova('Spotify', 'il Nest della cucina si riconosce anche se Spotify lo chiama Nest Cucina',
+      (smod.matchDevice(dmod.findDevice('nest-cucina')) || {}).id === 'd1');
+    prova('Spotify', 'il Nest del soggiorno si riconosce anche se Spotify lo chiama Soggiorno speaker',
+      (smod.matchDevice(dmod.findDevice('nest-soggiorno')) || {}).id === 'd2');
+
+    const r1 = imod.runCommand('metti la musica in soggiorno');
+    prova('Spotify', '"metti la musica in soggiorno" sposta la musica sul Nest giusto',
+      r1 && r1.spotify && r1.spotify.azione === 'play' && r1.spotify.dispositivo === 'd2', JSON.stringify(r1 && r1.spotify));
+    const r2 = imod.runCommand('ferma la musica');
+    prova('Spotify', '"ferma la musica" mette in pausa', r2 && r2.spotify && r2.spotify.azione === 'pausa');
+    const r3 = imod.runCommand('alza il volume');
+    prova('Spotify', '"alza il volume" parte dal volume attuale', r3 && r3.spotify && r3.spotify.azione === 'volume' && r3.spotify.volume === 55);
+    const r4 = imod.runCommand('metti la playlist cena in cucina');
+    prova('Spotify', '"metti la playlist cena" fa partire la playlist, non la scena Cena',
+      r4 && r4.spotify && r4.spotify.uri === 'spotify:playlist:cena' && r4.spotify.dispositivo === 'd1', JSON.stringify(r4));
+    const r5 = imod.runCommand('metti la musica in bagno');
+    prova('Spotify', 'se Spotify non vede il Nest lo dice e spiega cosa fare', r5 && !r5.spotify && /app Spotify/.test(r5.reply));
+    const r6 = imod.runCommand('prossima canzone');
+    prova('Spotify', '"prossima canzone" passa al brano successivo', r6 && r6.spotify && r6.spotify.azione === 'successivo');
+
+    comandi.length = 0;
+    const esito = await smod.spotifyCommand({ azione: 'pausa' });
+    prova('Spotify', 'i comandi arrivano al servizio', esito.ok && comandi[0].azione === 'pausa');
+
+    comandi.length = 0;
+    dmod.setLive(true);
+    dmod.runScene('silenzio');
+    await new Promise(r => setTimeout(r, 100));
+    dmod.setLive(false);
+    prova('Spotify', 'la scena Silenzio ferma anche Spotify', comandi.some(c => c.azione === 'pausa'));
+
+    const box = document.createElement('div');
+    mv.renderMusic(box);
+    await new Promise(r => setTimeout(r, 50));
+    const testo = box.textContent;
+    prova('Spotify', 'la scheda Musica mostra brano, altoparlanti e playlist',
+      testo.includes('Azzurro') && testo.includes('Nest Cucina') && testo.includes('Soggiorno speaker') && testo.includes('Rock anni 80'));
+  } finally {
+    window.fetch = vecchioFetch;
+    cfg.settings.syncUrl = vecchi.url;
+    cfg.settings.syncToken = vecchi.token;
+    await smod.checkSpotify();
+  }
+}
+
 // ---------- pulizia finale ----------
 // I dati inventati dal collaudo non devono restare sul pannello.
 ['domapp.reminders.v1', 'domapp.shopping.v1', 'domapp.timers.v1', 'domapp.alarms.v1',

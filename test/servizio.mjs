@@ -191,6 +191,91 @@ const env = { CASA: kv(), CASA_TOKEN: TOKEN };
   prova('senza parola di casa niente comandi a Google', r5.status === 401);
 }
 
+// 8c. Spotify, con uno Spotify finto
+{
+  const envS = { CASA: kv(), CASA_TOKEN: TOKEN };
+  const s0 = await (await W.fetch(req('/spotify/stato', { token: TOKEN }), envS)).json();
+  prova('senza permesso Spotify il servizio dice non collegato', s0.collegato === false);
+  const c0 = await W.fetch(req('/spotify/comando', { method: 'POST', token: TOKEN, body: { azione: 'pausa' } }), envS);
+  prova('senza permesso un comando Spotify riceve 503', c0.status === 503);
+  const senza = await W.fetch(req('/spotify/collega', { method: 'POST', token: 'sbagliata', body: { clientId: 'x', refresh: 'y' } }), envS);
+  prova('senza parola di casa non si consegna il permesso Spotify', senza.status === 401);
+
+  const k = await W.fetch(req('/spotify/collega', { method: 'POST', token: TOKEN, body: { clientId: 'cid', refresh: 'R1' } }), envS);
+  prova('lo script consegna il permesso Spotify', k.ok);
+
+  const veroFetch = globalThis.fetch;
+  const chiamate = [];
+  let rinnovi = 0, playerRisposta = 200;
+  globalThis.fetch = async (u, o) => {
+    u = String(u);
+    chiamate.push({ u, m: o.method, body: o.body, auth: o.headers && o.headers.Authorization });
+    if (u.startsWith('https://accounts.spotify.com/api/token')) {
+      rinnovi++;
+      const p = new URLSearchParams(o.body);
+      if (p.get('refresh_token') !== (rinnovi === 1 ? 'R1' : 'R2') || p.get('client_id') !== 'cid') return new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 400 });
+      return new Response(JSON.stringify({ access_token: 'A' + rinnovi, expires_in: 3600, refresh_token: 'R2' }), { status: 200 });
+    }
+    if (u.endsWith('/me/player') && o.method === 'GET') {
+      if (playerRisposta === 204) return new Response(null, { status: 204 });
+      return new Response(JSON.stringify({ is_playing: true, item: { name: 'Azzurro', artists: [{ name: 'Paolo Conte' }] }, device: { id: 'd1', name: 'Cucina', volume_percent: 40 } }), { status: 200 });
+    }
+    if (u.endsWith('/me/player/devices')) return new Response(JSON.stringify({ devices: [{ id: 'd1', name: 'Cucina', type: 'CastAudio', is_active: true, volume_percent: 40 }, { id: 'd2', name: 'Soggiorno', type: 'CastAudio', is_active: false }] }), { status: 200 });
+    if (u.includes('/me/playlists')) return new Response(JSON.stringify({ items: [{ name: 'Cena', uri: 'spotify:playlist:1' }, null] }), { status: 200 });
+    if (u.includes('/me/player/pause') && u.includes('device_id=spento')) return new Response(JSON.stringify({ error: { status: 404, message: 'Device not found', reason: 'NO_ACTIVE_DEVICE' } }), { status: 404 });
+    if (u.includes('/me/player')) return new Response(null, { status: 204 });
+    return new Response('{}', { status: 404 });
+  };
+
+  try {
+    const st = await (await W.fetch(req('/spotify/stato', { token: TOKEN }), envS)).json();
+    prova('lo stato dice cosa suona e dove', st.collegato && st.suona && st.titolo === 'Azzurro' && st.artista === 'Paolo Conte' && st.dispositivo === 'Cucina' && st.volume === 40, JSON.stringify(st).slice(0, 120));
+    prova('l elenco degli altoparlanti visti da Spotify arriva al pannello', st.dispositivi.length === 2 && st.dispositivi[1].nome === 'Soggiorno');
+    prova('il permesso lungo nuovo di Spotify viene conservato', JSON.parse(envS.CASA._m.get('spotify')).refresh === 'R2');
+    const usati = rinnovi;
+    await W.fetch(req('/spotify/stato', { token: TOKEN }), envS);
+    prova('il permesso breve si riusa finché vale', rinnovi === usati);
+
+    playerRisposta = 204;
+    const st2 = await (await W.fetch(req('/spotify/stato', { token: TOKEN }), envS)).json();
+    prova('senza niente in riproduzione lo stato resta leggibile', st2.collegato && !st2.suona && st2.titolo === '');
+
+    const pl = await (await W.fetch(req('/spotify/playlist', { token: TOKEN }), envS)).json();
+    prova('le playlist arrivano al pannello', pl.ok && pl.playlist.length === 1 && pl.playlist[0].uri === 'spotify:playlist:1');
+
+    chiamate.length = 0;
+    await W.fetch(req('/spotify/comando', { method: 'POST', token: TOKEN, body: { azione: 'play', dispositivo: 'd2' } }), envS);
+    const sposta = chiamate.find(c => c.u.endsWith('/me/player') && c.m === 'PUT');
+    prova('suonare su un altro Nest sposta lì la musica', sposta && JSON.parse(sposta.body).device_ids[0] === 'd2');
+
+    chiamate.length = 0;
+    await W.fetch(req('/spotify/comando', { method: 'POST', token: TOKEN, body: { azione: 'play', dispositivo: 'd1', uri: 'spotify:playlist:1' } }), envS);
+    const parte = chiamate.find(c => c.u.includes('/me/player/play'));
+    prova('una playlist parte sul Nest scelto', parte && parte.u.includes('device_id=d1') && JSON.parse(parte.body).context_uri === 'spotify:playlist:1');
+
+    chiamate.length = 0;
+    await W.fetch(req('/spotify/comando', { method: 'POST', token: TOKEN, body: { azione: 'volume', volume: 130 } }), envS);
+    prova('il volume resta fra 0 e 100', chiamate.some(c => c.u.includes('volume_percent=100')));
+
+    const spento = await W.fetch(req('/spotify/comando', { method: 'POST', token: TOKEN, body: { azione: 'pausa', dispositivo: 'spento' } }), envS);
+    const js = await spento.json();
+    prova('un Nest che Spotify non vede viene spiegato', spento.status === 502 && /app Spotify/.test(js.error), js.error);
+
+    const ignoto = await W.fetch(req('/spotify/comando', { method: 'POST', token: TOKEN, body: { azione: 'balla' } }), envS);
+    prova('un comando sconosciuto viene rifiutato', ignoto.status === 400);
+
+    // permesso revocato
+    const c = JSON.parse(envS.CASA._m.get('spotify'));
+    envS.CASA._m.set('spotify', JSON.stringify({ clientId: 'cid', refresh: 'VECCHIO' }));
+    const rev = await W.fetch(req('/spotify/comando', { method: 'POST', token: TOKEN, body: { azione: 'pausa' } }), envS);
+    const jr = await rev.json();
+    prova('un permesso Spotify revocato si dice chiaramente', rev.status === 502 && jr.auth === true && /rifatto/.test(jr.error), jr.error);
+    prova('il permesso Spotify non si puo rileggere dal servizio', !JSON.stringify(await (await W.fetch(req('/spotify/stato', { token: TOKEN }), envS)).json()).includes('VECCHIO'));
+  } finally {
+    globalThis.fetch = veroFetch;
+  }
+}
+
 // 8. meteo di rimbalzo, dalla rete vera
 {
   try {

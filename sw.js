@@ -7,7 +7,7 @@
 // Su iPhone le notifiche funzionano solo se la pagina e stata aggiunta
 // alla schermata Home: e una regola di Apple, non una nostra scelta.
 
-var CACHE = 'casa-v5';
+var CACHE = 'casa-v6';
 
 var CORE = [
   './',
@@ -31,6 +31,7 @@ var CORE = [
   './js/intents.js',
   './js/intercom.js',
   './js/motion.js',
+  './js/music-view.js',
   './js/photos.js',
   './js/presence-sim.js',
   './js/presence.js',
@@ -45,6 +46,7 @@ var CORE = [
   './js/sentinel.js',
   './js/setup.js',
   './js/shopping.js',
+  './js/spotify.js',
   './js/sync.js',
   './js/timers.js',
   './js/ui.js',

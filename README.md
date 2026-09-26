@@ -470,7 +470,7 @@ Le prove del servizio si eseguono con `node test/servizio.mjs`.
 |---|---|
 | Luci, TV, clima, prese | attraverso Google Home, dopo `google/GUIDA.md` |
 | Citofono | si prova attraverso Google Home, che a volte rifiuta di aprire a distanza |
-| Musica sui Nest | da collegare con Spotify |
+| Musica sui Nest | attraverso Spotify Premium, dopo `spotify/GUIDA.md` |
 | Broadlink e presa D-Link collegati direttamente | serve il ponte in casa |
 | Telecamere fisse | serve il ponte in casa, codice gia pronto |
 
@@ -498,6 +498,15 @@ permesso di Google resta nelle variabili di Vercel e in
 - Google concede circa cinquecento comandi al giorno: per una casa bastano.
 
 Le prove del programma si eseguono con `node test/ponte-google.mjs`.
+
+## Spotify
+
+La musica sui Nest passa da Spotify, comandato dal servizio di casa con il
+permesso chiesto una volta da `node spotify/autorizza.mjs`. Il permesso
+resta solo nel deposito del servizio; i tablet chiedono al servizio cosa
+suona e mandano i comandi. Funziona anche da fuori casa e con il tablet
+spento. Spotify vede un Nest solo se e stato usato di recente dall'app
+Spotify: quando non lo vede, il pannello lo dice.
 
 ## Limiti noti del browser
 

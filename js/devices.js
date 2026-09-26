@@ -209,6 +209,10 @@ export function runScene(id){
   }
   if (sc.allSpeakers) {
     for (var p = 0; p < speakers.length; p++) setDevice(speakers[p].id, sc.allSpeakers === 'on', false);
+    // La musica vera la ferma Spotify, se e collegato.
+    for (var w = 0; w < speakerWatchers.length; w++) {
+      try { speakerWatchers[w](sc.allSpeakers === 'on'); } catch (e) {}
+    }
   }
   for (var a = 0; a < sc.actions.length; a++) {
     setDevice(sc.actions[a].device, sc.actions[a].on, false);
@@ -271,6 +275,9 @@ export function sembraRifiuto(testo){
 // Gli altoparlanti non si comandano da qui: la musica sui Nest passa da
 // Spotify, che e un collegamento a parte.
 function viaGoogle(dev){ return dev.via === 'google' && dev.kind !== 'speaker'; }
+
+var speakerWatchers = [];
+export function onSceneSpeakers(fn){ speakerWatchers.push(fn); }
 
 var resultWatchers = [];
 export function onSendResult(fn){ resultWatchers.push(fn); }

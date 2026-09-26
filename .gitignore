@@ -12,3 +12,6 @@ google/client_secret*.json
 google/credenziali.txt
 google/relay/.vercel/
 .vercel/
+
+# Spotify
+spotify/client-id.txt

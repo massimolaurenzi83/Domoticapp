@@ -33,8 +33,9 @@ import { registerWorker, enableNotifications, notificationsActive, pushBlockedRe
 import { micOn, camOn, setMic, setCam, silenceAll, onPrivacyChange, privacySummary } from './privacy.js';
 import { setSyncConfig, startSync, syncConfigured, syncStatus, touch } from './sync.js';
 import { setIntercomHandler } from './intercom.js';
-import { commandLog, onToggle, onSendResult, setLive, isLive } from './devices.js';
+import { commandLog, onToggle, onSendResult, setLive, isLive, onSceneSpeakers } from './devices.js';
 import { checkGoogle, googleStatus, sendToGoogle } from './google.js';
+import { checkSpotify, spotifyCommand, spotifyStatus, spotifyReady } from './spotify.js';
 import { loadWallpapers, applyWallpaper } from './wallpaper.js';
 import { startVoice, stopVoice, say, voiceAvailable, voiceDiagnostics, captureNext, primeSpeech, speechStatus, voiceListening } from './voice.js';
 import { runCommand } from './intents.js';
@@ -226,6 +227,7 @@ function updateDiagnostics(){
     alarmDiagnostics(),
     'Allineamento: ' + (syncConfigured() ? syncStatus() : 'solo questo tablet'),
     'Google Home: ' + googleStatus(),
+    'Spotify: ' + spotifyStatus(),
     'Notifiche: ' + (notificationsActive() ? 'attive' : (pushBlockedReason() || 'da attivare')),
     'Telefono: ' + (isIOS() ? ('iPhone, ' + (isStandalone() ? 'aperta dalla schermata Home' : 'aperta dentro il browser')) : 'Android o altro'),
     'Foto caricate: ' + photoCount(),
@@ -371,6 +373,7 @@ function boot(){
   // della privacy: chiamarle anche qui apriva due flussi video.
   onToggle(noteHabit);
   setupGoogle();
+  setupSpotify();
 
   applyScale();
   unlockOnFirstTouch();
@@ -598,6 +601,7 @@ function setupVoice(){
       if (result.device === 'citofono') document.getElementById('doorbell').hidden = false;
 
       if (result.screen === 'control') renderCurrentTab();
+      if (result.spotify) runSpotify(rest, result.spotify);
       if (result.weather) result.reply = weatherSentence(lastWeather);
       showVoiceBar(rest, result.reply);
       if (settings.voiceReply) say(result.reply);
@@ -805,6 +809,28 @@ function askGoogleAloud(heard, frase){
     renderCurrentTab();
     updateDiagnostics();
   });
+}
+
+// ---------- Spotify ----------
+
+// Manda il comando detto a voce e, se non va, lo dice.
+function runSpotify(heard, cmd){
+  spotifyCommand(cmd).then(function(r){
+    if (!r.ok) {
+      var reply = 'Spotify: ' + r.errore + '.';
+      showVoiceBar(heard, reply, 12000);
+      if (settings.voiceReply) say(reply);
+    }
+    setTimeout(function(){ checkSpotify().then(renderCurrentTab); }, 900);
+  });
+}
+
+function setupSpotify(){
+  onSceneSpeakers(function(on){
+    if (spotifyReady()) spotifyCommand({ azione: on ? 'play' : 'pausa' });
+  });
+  checkSpotify();
+  setInterval(checkSpotify, 5 * 60000);
 }
 
 function setupGoogle(){

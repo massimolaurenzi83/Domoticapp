@@ -1,7 +1,7 @@
 // Disegno delle schermate e del pannello impostazioni.
 
 import { SCHEMA, settings, save } from './config.js';
-import { devices, scenes, speakers, toggle, runScene, needsBridge, notConnected, isLive } from './devices.js';
+import { devices, scenes, toggle, runScene, needsBridge, notConnected, isLive } from './devices.js';
 import { wallpaperList, setWallpaper, loadWallpapers } from './wallpaper.js';
 import { widgetChooser } from './widgets.js';
 import { pickAndAdd, list as galleryList, urlFor, remove as galleryRemove } from './gallery.js';
@@ -11,6 +11,7 @@ import { renderSecurity } from './security-view.js';
 import { sendMessage } from './intercom.js';
 import { renderShopping, renderAlarms } from './extra-views.js';
 import { renderRadio } from './radio-view.js';
+import { renderMusic } from './music-view.js';
 import { profiles, profileName } from './profiles.js';
 
 var GIORNI = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
@@ -38,13 +39,10 @@ export function renderTab(tab, onChange){
   if (tab === 'sveglia') { renderAlarms(body); return; }
   if (tab === 'radio') { renderRadio(body); return; }
   if (tab === 'casa') { renderHome(body, onChange); return; }
+  if (tab === 'musica') { renderMusic(body); return; }
 
-  var elenco = tab === 'musica'
-    ? speakers.slice()
-    : devices.filter(function(d){ return d.type === 'clima'; });
-  var vuoto = tab === 'musica'
-    ? 'Nessun altoparlante. Aggiungili dalla scheda Casa, con il tasto Modifica.'
-    : 'Nessun climatizzatore. Aggiungilo dalla scheda Casa, con il tasto Modifica.';
+  var elenco = devices.filter(function(d){ return d.type === 'clima'; });
+  var vuoto = 'Nessun climatizzatore. Aggiungilo dalla scheda Casa, con il tasto Modifica.';
 
   body.innerHTML = '';
   if (!elenco.length) {

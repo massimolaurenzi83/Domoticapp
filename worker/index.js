@@ -12,6 +12,7 @@
 // ogni dispositivo in un tocco.
 
 import { sendToAll } from './push.js';
+import { gestisciSpotify } from './spotify.js';
 
 var CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -167,6 +168,11 @@ export default {
       }
       return json({ error: 'nessuna fonte raggiungibile' }, 502);
     }
+
+    // ---------- Spotify ----------
+
+    var musica = await gestisciSpotify(url, request, env, json);
+    if (musica) return musica;
 
     // ---------- Google Home ----------
 

@@ -5,7 +5,8 @@
 // Quando Google Home e collegato, le frasi che il pannello non conosce
 // vengono girate a Google Assistant cosi come sono state dette.
 
-import { devices, rooms, roomName, setDevice, toggle, runScene, scenes, isLive } from './devices.js';
+import { devices, speakers, rooms, roomName, setDevice, toggle, runScene, scenes, isLive } from './devices.js';
+import { spotifyReady, spotifyState, matchDevice, findPlaylist } from './spotify.js';
 
 // Risposta onesta quando il comando riguarda qualcosa che il pannello non
 // comanda ancora davvero. Meglio dirlo che fingere di averlo fatto.
@@ -130,21 +131,24 @@ export function runCommand(text){
   }
 
   // Una scena si chiama per nome, per esempio "cena" o "buonanotte".
-  var scena = firstOf(scenes, function(sc){
+  // "metti la playlist cena" e musica, non la scena Cena.
+  var perMusica = has(text, ['playlist', 'spotify']);
+  var scena = perMusica ? null : firstOf(scenes, function(sc){
     var nome = fold(sc.name).trim();
     return nome && text.indexOf(nome) !== -1;
   });
-  if (!scena && has(text, ['buona notte'])) scena = firstOf(scenes, function(sc){ return sc.id === 'buonanotte'; });
+  if (!scena && !perMusica && has(text, ['buona notte'])) scena = firstOf(scenes, function(sc){ return sc.id === 'buonanotte'; });
   if (scena) {
     if (!isLive()) return notYet('luci');
     runScene(scena.id);
     return { reply: 'Fatto: ' + scena.name.toLowerCase() + '.', screen: 'control' };
   }
 
-  if (has(text, ['musica', 'spotify', 'canzone', 'suona', 'metti su'])) {
-    // Google non accetta comandi di musica da questa strada: servira il
-    // collegamento con Spotify.
-    return notYet('musica', 'musica');
+  if (has(text, ['musica', 'spotify', 'canzone', 'suona', 'metti su', 'playlist', 'volume', 'brano', 'pausa'])) {
+    // La musica passa da Spotify: Google non accetta comandi di musica da
+    // questa strada.
+    if (!spotifyReady()) return notYet('musica', 'musica');
+    return musicCommand(text, room);
   }
 
   if (wantsOn || wantsOff) {
@@ -180,6 +184,41 @@ export function runCommand(text){
 
   if (isLive()) return askGoogle(raw);
   return null;
+}
+
+// Comandi per Spotify. La risposta si dice subito; il comando lo manda il
+// pannello, che poi riferisce se non e andato.
+function musicCommand(text, room){
+  var st = spotifyState() || {};
+  function musica(reply, cmd){ return { reply: reply, screen: 'control', tab: 'musica', spotify: cmd }; }
+
+  if (has(text, ['ferma', 'basta', 'stop', 'silenzio', 'spegni', 'pausa'])) return musica('Fermo la musica.', { azione: 'pausa' });
+  if (has(text, ['prossim', 'successiv', 'salta', 'avanti'])) return musica('Passo al brano successivo.', { azione: 'successivo' });
+  if (has(text, ['precedente', 'torna indietro'])) return musica('Torno al brano precedente.', { azione: 'precedente' });
+  if (has(text, ['volume', 'piu forte', 'piu piano'])) {
+    var su = has(text, ['alza', 'aumenta', 'piu forte']);
+    var giu = has(text, ['abbassa', 'diminuisci', 'piu piano']);
+    if (su || giu) {
+      var v = (st.volume == null ? 50 : st.volume) + (su ? 15 : -15);
+      return musica(su ? 'Alzo il volume.' : 'Abbasso il volume.', { azione: 'volume', volume: Math.max(0, Math.min(100, v)) });
+    }
+  }
+
+  var dove = null;
+  if (room) {
+    var sp = firstOf(speakers, function(x){ return x.room === room; });
+    dove = (sp && matchDevice(sp)) || matchDevice({ google: '', room: room, name: '' });
+    if (!dove) {
+      return { reply: 'Spotify non vede il Nest' + where(room) + '. Fallo partire una volta dall’app Spotify, poi riprova.',
+               screen: 'control', tab: 'musica' };
+    }
+  }
+
+  var pl = findPlaylist(text);
+  if (pl) return musica('Metto ' + pl.nome + (dove ? where(room) : '') + '.',
+    { azione: 'play', uri: pl.uri, dispositivo: dove ? dove.id : (st.dispositivoId || '') });
+  if (dove) return musica('Metto la musica' + where(room) + '.', { azione: 'play', dispositivo: dove.id });
+  return musica('Faccio ripartire la musica.', { azione: 'play' });
 }
 
 function askGoogle(frase){
