@@ -96,7 +96,14 @@
       fatto(false);
     }, 10000);
 
-    fetch(p.url, { cache: 'no-store' }).then(function(r){
+    // La prova di internet chiama un indirizzo che non concede la lettura
+    // ad altri siti: basta sapere che risponde, quindi non chiediamo di
+    // leggere il contenuto.
+    var opzioni = p.nome.indexOf('Internet') === 0
+      ? { cache: 'no-store', mode: 'no-cors' }
+      : { cache: 'no-store' };
+
+    fetch(p.url, opzioni).then(function(r){
       if (scaduto) return;
       clearTimeout(timer);
       var ms = new Date().getTime() - partito;
