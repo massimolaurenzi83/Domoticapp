@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagnostica</title>
+<style>
+  body{margin:0;padding:24px 18px;background:#0b0d10;color:#e8eaed;
+       font-family:-apple-system,"Roboto",Arial,sans-serif;line-height:1.5;}
+  .box{max-width:680px;margin:0 auto;}
+  h1{font-size:24px;font-weight:400;margin:0 0 6px;}
+  .sub{font-size:15px;color:#9aa0a8;margin-bottom:22px;}
+  .riga{background:#14171b;border-radius:10px;padding:14px 16px;margin-bottom:10px;}
+  .nome{font-size:16px;}
+  .esito{font-size:15px;margin-top:5px;}
+  .ok{color:#6cc47a;}
+  .ko{color:#e07b7b;}
+  .attesa{color:#9aa0a8;}
+  .dett{font-size:13px;color:#8a9099;margin-top:5px;word-break:break-all;}
+  button{background:#1d3a55;color:#e2eefb;border:0;font-family:inherit;
+         font-size:17px;padding:16px 22px;border-radius:10px;width:100%;margin-top:18px;}
+  .riassunto{background:#1b1f25;border-radius:10px;padding:16px;margin-top:18px;
+             font-size:15px;color:#c3c7cc;}
+</style>
+</head>
+<body>
+<div class="box">
+
+  <h1>Diagnostica</h1>
+  <div class="sub">Questa pagina prova da sola tutto quello che al pannello serve per funzionare.</div>
+
+  <div id="esiti"></div>
+
+  <div class="riassunto" id="riassunto">Prove in corso...</div>
+
+  <button id="ripeti" type="button">Ripeti le prove</button>
+
+</div>
+
+<script>
+(function(){
+  var esiti = document.getElementById('esiti');
+  var riassunto = document.getElementById('riassunto');
+
+  // Ogni prova e un indirizzo da raggiungere e un modo per capire se la
+  // risposta ha senso. Niente librerie, cosi funziona anche sui browser
+  // piu vecchi.
+  var PROVE = [
+    { nome: 'Internet in generale',
+      url: 'https://www.google.com/generate_204',
+      controlla: function(){ return true; } },
+
+    { nome: 'Meteo 1, Open-Meteo',
+      url: 'https://api.open-meteo.com/v1/forecast?latitude=44.5&longitude=11.3&current=temperature_2m',
+      controlla: function(d){ return d.current && typeof d.current.temperature_2m === 'number'; } },
+
+    { nome: 'Meteo 2, met.no',
+      url: 'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=44.5&lon=11.3',
+      controlla: function(d){ return d.properties && d.properties.timeseries; } },
+
+    { nome: 'Meteo 3, wttr.in',
+      url: 'https://wttr.in/44.5,11.3?format=j1',
+      controlla: function(d){ return d.current_condition && d.current_condition.length; } },
+
+    { nome: 'Ricerca citta 1',
+      url: 'https://geocoding-api.open-meteo.com/v1/search?count=1&name=Bologna',
+      controlla: function(d){ return d.results && d.results.length; } },
+
+    { nome: 'Ricerca citta 2, OpenStreetMap',
+      url: 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=Bologna',
+      controlla: function(d){ return d.length > 0; } }
+  ];
+
+  function riga(nome){
+    var d = document.createElement('div');
+    d.className = 'riga';
+    d.innerHTML = '<div class="nome">' + nome + '</div>' +
+                  '<div class="esito attesa">provo...</div>' +
+                  '<div class="dett"></div>';
+    esiti.appendChild(d);
+    return d;
+  }
+
+  function scrivi(el, ok, testo, dettaglio){
+    el.querySelector('.esito').className = 'esito ' + (ok ? 'ok' : 'ko');
+    el.querySelector('.esito').textContent = testo;
+    el.querySelector('.dett').textContent = dettaglio || '';
+  }
+
+  function prova(p, el, fatto){
+    var partito = new Date().getTime();
+    var scaduto = false;
+    var timer = setTimeout(function(){
+      scaduto = true;
+      scrivi(el, false, 'NON RISPONDE', 'scaduto dopo 10 secondi');
+      fatto(false);
+    }, 10000);
+
+    fetch(p.url, { cache: 'no-store' }).then(function(r){
+      if (scaduto) return;
+      clearTimeout(timer);
+      var ms = new Date().getTime() - partito;
+
+      if (p.nome.indexOf('Internet') === 0) {
+        scrivi(el, true, 'RAGGIUNGIBILE', 'risposta in ' + ms + ' millisecondi');
+        fatto(true);
+        return;
+      }
+
+      if (!r.ok) {
+        scrivi(el, false, 'RIFIUTATO', 'il server ha risposto con stato ' + r.status);
+        fatto(false);
+        return;
+      }
+
+      r.json().then(function(d){
+        if (p.controlla(d)) {
+          scrivi(el, true, 'FUNZIONA', 'risposta valida in ' + ms + ' millisecondi');
+          fatto(true);
+        } else {
+          scrivi(el, false, 'RISPOSTA STRANA', 'ha risposto ma i dati non sono quelli attesi');
+          fatto(false);
+        }
+      }, function(){
+        scrivi(el, false, 'RISPOSTA NON LEGGIBILE',
+               'ha risposto qualcosa che non sono dati. Di solito significa che qualcuno si e messo in mezzo');
+        fatto(false);
+      });
+
+    }, function(e){
+      if (scaduto) return;
+      clearTimeout(timer);
+      scrivi(el, false, 'IRRAGGIUNGIBILE', (e && e.message ? e.message : 'errore di rete'));
+      fatto(false);
+    });
+  }
+
+  function avvia(){
+    esiti.innerHTML = '';
+    riassunto.textContent = 'Prove in corso...';
+
+    var righe = [];
+    for (var i = 0; i < PROVE.length; i++) righe.push(riga(PROVE[i].nome));
+
+    var rimaste = PROVE.length;
+    var riusciti = 0;
+
+    for (var k = 0; k < PROVE.length; k++) {
+      (function(p, el){
+        prova(p, el, function(ok){
+          if (ok) riusciti++;
+          rimaste--;
+          if (rimaste === 0) {
+            riassunto.textContent = riusciti + ' prove riuscite su ' + PROVE.length +
+              '. Leggi a Claude le righe rosse.';
+          }
+        });
+      })(PROVE[k], righe[k]);
+    }
+  }
+
+  document.getElementById('ripeti').addEventListener('click', avvia);
+  avvia();
+})();
+</script>
+</body>
+</html>
