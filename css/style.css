@@ -1,8 +1,8 @@
 :root{
   --bg:#07080a;
   --fg:#f2f3f5;
-  --fg-dim:#9aa0a8;
-  --fg-faint:#5d636b;
+  --fg-dim:#b4bac2;
+  --fg-faint:#8a9099;
   --card:#14171b;
   --card-hi:#1e2228;
   --line:#272c33;
@@ -112,7 +112,7 @@ html,body{
 .tile-glyph{font-size:30px;line-height:1;}
 .tile.is-on .tile-glyph{color:var(--on);}
 .tile-name{font-size:17px;}
-.tile-state{font-size:13px;color:var(--fg-dim);margin-top:2px;}
+.tile-state{font-size:15px;color:var(--fg-dim);margin-top:2px;}
 .tile.is-on .tile-state{color:var(--on);}
 .tile-scene{background:var(--accent-bg);}
 .tile-scene .tile-glyph{color:var(--accent);}
@@ -269,7 +269,7 @@ html,body{
 .home-top{display:flex;align-items:center;gap:14px;margin-bottom:6px;}
 .home-note{flex:1;font-size:14px;color:var(--fg-dim);}
 .room-section{margin-top:16px;}
-.room-title{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--fg-faint);margin:0 0 8px 2px;}
+.room-title{font-size:20px;font-weight:600;letter-spacing:.5px;color:var(--fg);margin:0 0 10px 2px;}
 .room-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}
 .room-grid .tile{min-height:116px;}
 

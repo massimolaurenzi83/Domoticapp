@@ -135,7 +135,9 @@ function tick(){
   document.getElementById('control-clock').textContent = t;
   document.getElementById('clock-date').textContent = dateString(now);
 
-  applyScheduledBrightness(isAwake() || settingsOpen);
+  // Chi sta usando il pannello deve vederlo bene, a qualsiasi ora.
+  var inUso = currentScreen === 'control' || settingsOpen || sheetOpen() || Date.now() - lastTouchAt < 20000;
+  applyScheduledBrightness(isAwake() || settingsOpen, inUso);
   paintTimers();
 
   // La plancia torna a riposo dopo il tempo scelto senza tocchi.
@@ -338,6 +340,7 @@ function boot(){
 
   // Qualunque tocco conta, comprese caselle, schede e scorrimento.
   document.addEventListener('touchstart', markTouch, true);
+  document.addEventListener('mousedown', markTouch, true);
   document.addEventListener('click', markTouch, true);
   document.addEventListener('keydown', markTouch, true);
   document.addEventListener('input', markTouch, true);

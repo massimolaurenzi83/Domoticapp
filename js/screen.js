@@ -37,7 +37,17 @@ export function setBrightness(level){
 
 // Calcola la luminosita giusta per l ora corrente e lo stato di veglia.
 // awake e true quando qualcuno ha toccato o e stato rilevato un passaggio.
-export function applyScheduledBrightness(awake){
+// inUse e true quando qualcuno sta usando il pannello: plancia aperta,
+// impostazioni o un tocco recente. Allora si vede come di giorno, anche di
+// notte e nelle ore di riposo: prima il velo restava e non si leggeva
+// niente.
+export function applyScheduledBrightness(awake, inUse){
+  if (inUse) {
+    wantLock(true);
+    setBrightness(Math.max(settings.dayBrightness, 60));
+    return 'in uso';
+  }
+
   var sleeping = isSleepHours() && !awake;
 
   if (sleeping) {

@@ -7,7 +7,7 @@
 // Su iPhone le notifiche funzionano solo se la pagina e stata aggiunta
 // alla schermata Home: e una regola di Apple, non una nostra scelta.
 
-var CACHE = 'casa-v4';
+var CACHE = 'casa-v5';
 
 var CORE = [
   './',
