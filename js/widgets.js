@@ -24,7 +24,7 @@ export var WIDGETS = {
   radio:      { label: 'Radio in onda', hint: 'compare solo mentre suona' }
 };
 
-var DEFAULT_ORDER = ['meteo', 'timer', 'promemoria', 'spesa'];
+var DEFAULT_ORDER = ['meteo', 'timer', 'messaggi', 'promemoria', 'spesa'];
 
 export function chosenWidgets(){
   try {

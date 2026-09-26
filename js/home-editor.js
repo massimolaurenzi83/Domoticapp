@@ -8,6 +8,7 @@
 import { TYPES, VIAS, currentLayout, saveLayout, resetToExample, newId, isExampleLayout } from './devices.js';
 
 var draft = null;
+var original = '';
 var onSaved = null;
 var sheet = null;
 
@@ -47,6 +48,7 @@ export function openHomeEditor(savedCallback){
   onSaved = savedCallback;
   draft = currentLayout();
   if (!draft.scenes) draft.scenes = [];
+  original = JSON.stringify(draft);
 
   if (!sheet) {
     sheet = el('div', 'sheet');
@@ -74,6 +76,16 @@ function paint(scrollTo){
 
   var inner = el('div', 'sheet-inner ed-inner');
   sheet.appendChild(inner);
+
+  var back = el('button', 'btn-back');
+  back.type = 'button';
+  back.innerHTML = '&#8592; Indietro';
+  back.addEventListener('click', function(){
+    if (JSON.stringify(draft) !== original &&
+        !window.confirm('Uscire senza salvare le modifiche?')) return;
+    close();
+  });
+  inner.appendChild(back);
 
   inner.appendChild(el('h2', null, 'Stanze e dispositivi'));
   if (isExampleLayout()) {

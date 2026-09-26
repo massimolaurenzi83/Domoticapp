@@ -6,6 +6,14 @@ import { settings } from './config.js';
 
 export var securityHooks = { onArm: null, onDisarm: null, isArmed: null };
 
+// Un anteprima per scatto, creata una volta sola: prima se ne creavano
+// quaranta nuove a ogni visita della scheda, e non venivano mai liberate.
+var thumbUrls = {};
+function thumbUrl(shot){
+  if (!thumbUrls[shot.id]) thumbUrls[shot.id] = URL.createObjectURL(shot.blob);
+  return thumbUrls[shot.id];
+}
+
 export function renderSecurity(body){
   body.innerHTML = '';
 
@@ -245,7 +253,7 @@ function fillEvents(host, foot){
         var thumb = document.createElement('div');
         thumb.style.cssText = 'width:96px;height:72px;border-radius:8px;background:#0c0e11 center/cover;flex:none;';
         if (ev.cover && ev.cover.blob) {
-          thumb.style.backgroundImage = 'url("' + URL.createObjectURL(ev.cover.blob) + '")';
+          thumb.style.backgroundImage = 'url("' + thumbUrl(ev.cover) + '")';
         }
 
         var txt = document.createElement('div');

@@ -13,11 +13,37 @@
 // Al riavvio, se le impostazioni risultano sparite ma una copia esiste,
 // il ripristino avviene da solo senza chiedere niente.
 
-import { settings } from './config.js';
+import { settings, effectiveRole } from './config.js';
 
 var DB = 'domapp-backup';
 var STORE = 'copies';
 var LAST_KEY = 'domapp.backup.last.v1';
+var DEVICE_KEY = 'domapp.device.id';
+
+// Identita di questo dispositivo, creata una volta e poi conservata.
+export function deviceId(){
+  var id = null;
+  try { id = localStorage.getItem(DEVICE_KEY); } catch (e) {}
+  if (!id) {
+    id = 'dev' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+    try { localStorage.setItem(DEVICE_KEY, id); } catch (e) {}
+  }
+  return id;
+}
+
+function deviceLabel(){
+  var ua = navigator.userAgent;
+  if (/SM-P6/.test(ua)) return 'Galaxy Note 10.1';
+  if (/Xiaomi|MIUI|M2105K81AC|21051182/.test(ua)) return 'Xiaomi Pad';
+  if (/iPhone/.test(ua)) return 'iPhone';
+  if (/iPad/.test(ua)) return 'iPad';
+  if (/Android/.test(ua)) return 'Android';
+  return 'Dispositivo';
+}
+
+export function deviceInfo(){
+  return { id: deviceId(), label: deviceLabel(), role: effectiveRole() };
+}
 
 // Tutto cio che va salvato. Le chiavi del collegamento restano fuori:
 // sono proprie di ogni tablet e non vanno copiate sull altro.
@@ -35,7 +61,7 @@ var KEYS = [
   'domapp.setup.done.v1'
 ];
 
-var LOCAL_ONLY_SETTINGS = ['syncUrl', 'syncToken', 'bridgeUrl'];
+var LOCAL_ONLY_SETTINGS = ['syncUrl', 'syncToken', 'bridgeUrl', 'uiScale', 'wallpaper', 'deviceRole'];
 
 // ---------- deposito ----------
 
@@ -106,6 +132,8 @@ export function restore(copy, options){
 // ---------- copia dentro il tablet ----------
 
 export function saveLocalCopy(){
+  // Una copia di un dispositivo appena svuotato sovrascriverebbe quella buona.
+  if (looksWiped()) return Promise.resolve(null);
   var copy = snapshot();
   return store('readwrite').then(function(st){
     return new Promise(function(resolve){
@@ -191,10 +219,13 @@ export function autoRestoreIfNeeded(){
 // ---------- copia sul servizio ----------
 
 export function pushToService(){
-  if (!settings.syncUrl) return Promise.resolve(false);
+  if (!settings.syncUrl || !settings.syncToken) return Promise.resolve(false);
+  // Un tablet appena svuotato non deve mandare la sua copia vuota.
+  if (looksWiped()) return Promise.resolve(false);
   var copy = snapshot();
+  copy.device = deviceInfo();
 
-  // Le impostazioni proprie del tablet non devono viaggiare.
+  // Le impostazioni proprie del dispositivo non devono viaggiare.
   try {
     var s = JSON.parse(copy.data['domapp.settings.v1'] || '{}');
     for (var i = 0; i < LOCAL_ONLY_SETTINGS.length; i++) delete s[LOCAL_ONLY_SETTINGS[i]];
@@ -208,13 +239,38 @@ export function pushToService(){
   }).then(function(r){ return r.ok; }).catch(function(){ return false; });
 }
 
+// Cerca sul servizio la copia piu adatta: quella di questo dispositivo se
+// c e, altrimenti la piu recente di un pannello di casa. Restituisce la
+// copia con l indicazione di chi l ha fatta, oppure lancia un errore che
+// spiega cosa non va.
 export function pullFromService(){
-  if (!settings.syncUrl) return Promise.resolve(null);
-  return fetch(String(settings.syncUrl).replace(/\/+$/, '') + '/backup', {
-    headers: { 'X-Casa-Token': settings.syncToken },
-    cache: 'no-store'
-  }).then(function(r){ return r.ok ? r.json() : null; })
-    .catch(function(){ return null; });
+  if (!settings.syncUrl || !settings.syncToken) {
+    return Promise.reject(new Error('il servizio di collegamento non e configurato'));
+  }
+  var base = String(settings.syncUrl).replace(/\/+$/, '');
+  var h = { 'X-Casa-Token': settings.syncToken };
+
+  function leggi(r){
+    if (r.status === 401) throw new Error('parola condivisa rifiutata dal servizio');
+    if (!r.ok) throw new Error('il servizio ha risposto ' + r.status);
+    return r.json();
+  }
+
+  return fetch(base + '/backup', { headers: h, cache: 'no-store' }).then(leggi).then(function(indice){
+    if (!indice || !indice.length) throw new Error('sul servizio non c e ancora nessuna copia');
+    var mio = deviceId();
+    var scelta = indice.filter(function(x){ return x.id === mio; })[0];
+    if (!scelta) {
+      var pannelli = indice.filter(function(x){ return x.role === 'pannello'; });
+      var elenco = pannelli.length ? pannelli : indice;
+      scelta = elenco.slice().sort(function(a, b){ return b.at - a.at; })[0];
+    }
+    return fetch(base + '/backup?device=' + encodeURIComponent(scelta.id), { headers: h, cache: 'no-store' })
+      .then(leggi).then(function(copy){ return { copy: copy, from: scelta }; });
+  }, function(e){
+    if (e instanceof TypeError) throw new Error('servizio non raggiungibile');
+    throw e;
+  });
 }
 
 // ---------- file ----------
@@ -260,9 +316,9 @@ export function readFile(file){
 
 var timer = null;
 
+// Il ripristino automatico avviene prima dell avvio del pannello, in
+// app.js: qui si pianificano solo le copie.
 export function startBackups(){
-  autoRestoreIfNeeded();
-
   var last = lastBackupAt();
   // La prima copia si fa subito se non ce n e mai stata una, altrimenti
   // si aspetta che ne passi una giornata.

@@ -124,7 +124,7 @@ export function renderAlarms(body){
       ? 'Prossima sveglia alle ' + next.alarm.time + (next.inDays === 0 ? ', oggi' : (next.inDays === 1 ? ', domani' : ', fra ' + next.inDays + ' giorni'))
       : 'Nessun orario impostato';
     head.appendChild(line);
-    head.appendChild(hint('La luce della camera si accende ' + settings.alarmSunriseMinutes + ' minuti prima. La musica parte all orario esatto.'));
+    head.appendChild(hint('Per ora suona il tablet e ti dice l ora. Luce della camera e musica partiranno quando Google Home sara collegato.'));
     wrap.appendChild(head);
   }
 

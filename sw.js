@@ -7,7 +7,7 @@
 // Su iPhone le notifiche funzionano solo se la pagina e stata aggiunta
 // alla schermata Home: e una regola di Apple, non una nostra scelta.
 
-var CACHE = 'casa-v2';
+var CACHE = 'casa-v3';
 
 var CORE = [
   './',
@@ -15,7 +15,42 @@ var CORE = [
   './css/style.css',
   './manifest.webmanifest',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './js/alarm-clock.js',
+  './js/app.js',
+  './js/backup.js',
+  './js/bridge.js',
+  './js/cameras.js',
+  './js/config.js',
+  './js/devices.js',
+  './js/doorbell-log.js',
+  './js/extra-views.js',
+  './js/gallery.js',
+  './js/home-editor.js',
+  './js/intents.js',
+  './js/intercom.js',
+  './js/motion.js',
+  './js/photos.js',
+  './js/presence-sim.js',
+  './js/presence.js',
+  './js/privacy.js',
+  './js/profiles.js',
+  './js/push.js',
+  './js/radio-view.js',
+  './js/radio.js',
+  './js/reminders.js',
+  './js/screen.js',
+  './js/security-view.js',
+  './js/sentinel.js',
+  './js/setup.js',
+  './js/shopping.js',
+  './js/sync.js',
+  './js/timers.js',
+  './js/ui.js',
+  './js/voice.js',
+  './js/wallpaper.js',
+  './js/weather.js',
+  './js/widgets.js'
 ];
 
 self.addEventListener('install', function(ev){
@@ -69,7 +104,12 @@ self.addEventListener('fetch', function(ev){
       return res;
     }).catch(function(){
       return caches.match(req).then(function(hit){
-        return hit || caches.match('./index.html');
+        if (hit) return hit;
+        // Per uno script o un foglio di stile mancante non si restituisce la
+        // pagina principale: il browser la scambierebbe per codice e il
+        // pannello resterebbe bianco. Meglio un errore chiaro.
+        if (/\.(js|css)(\?|$)/.test(req.url)) return Response.error();
+        return caches.match('./index.html');
       });
     })
   );

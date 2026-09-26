@@ -74,53 +74,57 @@ function openMeteo(lat, lon){
     '&daily=temperature_2m_max,temperature_2m_min' +
     '&forecast_days=1&timezone=auto';
 
-  return ask(url).then(function(j){
-    var cur = j.current || {};
-    var day = j.daily || {};
-    if (typeof cur.temperature_2m !== 'number') throw new Error('risposta senza temperatura');
-    return {
-      temp: Math.round(cur.temperature_2m),
-      desc: OPEN_METEO[cur.weather_code] || 'condizioni incerte',
-      min: day.temperature_2m_min ? Math.round(day.temperature_2m_min[0]) : null,
-      max: day.temperature_2m_max ? Math.round(day.temperature_2m_max[0]) : null,
-      source: 'open-meteo'
-    };
-  });
+  return ask(url).then(readOpenMeteo);
+}
+
+function readOpenMeteo(j){
+  var cur = j.current || {};
+  var day = j.daily || {};
+  if (typeof cur.temperature_2m !== 'number') throw new Error('risposta senza temperatura');
+  return {
+    temp: Math.round(cur.temperature_2m),
+    desc: OPEN_METEO[cur.weather_code] || 'condizioni incerte',
+    min: day.temperature_2m_min ? Math.round(day.temperature_2m_min[0]) : null,
+    max: day.temperature_2m_max ? Math.round(day.temperature_2m_max[0]) : null,
+    source: 'open-meteo'
+  };
 }
 
 function metNo(lat, lon){
   var url = 'https://api.met.no/weatherapi/locationforecast/2.0/compact' +
     '?lat=' + lat + '&lon=' + lon;
 
-  return ask(url).then(function(j){
-    var serie = j.properties && j.properties.timeseries;
-    if (!serie || !serie.length) throw new Error('risposta vuota');
+  return ask(url).then(readMetNo);
+}
 
-    var ora = serie[0].data;
-    var t = ora.instant && ora.instant.details ? ora.instant.details.air_temperature : null;
-    if (typeof t !== 'number') throw new Error('risposta senza temperatura');
+function readMetNo(j){
+  var serie = j.properties && j.properties.timeseries;
+  if (!serie || !serie.length) throw new Error('risposta vuota');
 
-    var simbolo = (ora.next_1_hours && ora.next_1_hours.summary) ||
-                  (ora.next_6_hours && ora.next_6_hours.summary) || {};
+  var ora = serie[0].data;
+  var t = ora.instant && ora.instant.details ? ora.instant.details.air_temperature : null;
+  if (typeof t !== 'number') throw new Error('risposta senza temperatura');
 
-    // Minima e massima si ricavano dalle prossime ventiquattro letture.
-    var min = t, max = t;
-    for (var i = 0; i < serie.length && i < 24; i++) {
-      var d = serie[i].data;
-      var v = d.instant && d.instant.details ? d.instant.details.air_temperature : null;
-      if (typeof v !== 'number') continue;
-      if (v < min) min = v;
-      if (v > max) max = v;
-    }
+  var simbolo = (ora.next_1_hours && ora.next_1_hours.summary) ||
+                (ora.next_6_hours && ora.next_6_hours.summary) || {};
 
-    return {
-      temp: Math.round(t),
-      desc: metDescription(simbolo.symbol_code),
-      min: Math.round(min),
-      max: Math.round(max),
-      source: 'met.no'
-    };
-  });
+  // Minima e massima si ricavano dalle prossime ventiquattro letture.
+  var min = t, max = t;
+  for (var i = 0; i < serie.length && i < 24; i++) {
+    var d = serie[i].data;
+    var v = d.instant && d.instant.details ? d.instant.details.air_temperature : null;
+    if (typeof v !== 'number') continue;
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+
+  return {
+    temp: Math.round(t),
+    desc: metDescription(simbolo.symbol_code),
+    min: Math.round(min),
+    max: Math.round(max),
+    source: 'met.no'
+  };
 }
 
 function wttr(lat, lon){
@@ -141,7 +145,22 @@ function wttr(lat, lon){
   });
 }
 
+// Il servizio di collegamento raggiunge i fornitori anche quando la rete
+// di casa o i certificati del tablet non lo permettono. Quando e
+// configurato, e la fonte piu affidabile.
+function viaService(lat, lon){
+  if (!settings.syncUrl || !settings.syncToken) return Promise.reject(new Error('servizio non configurato'));
+  var url = String(settings.syncUrl).replace(/\/+$/, '') + '/weather?lat=' + lat + '&lon=' + lon;
+  return ask(url, { 'X-Casa-Token': settings.syncToken }).then(function(r){
+    if (!r || !r.dati) throw new Error('risposta vuota');
+    var w = r.fonte === 'met.no' ? readMetNo(r.dati) : readOpenMeteo(r.dati);
+    w.source = 'servizio, ' + r.fonte;
+    return w;
+  });
+}
+
 var SOURCES = [
+  { id: 'servizio', fn: viaService },
   { id: 'open-meteo', fn: openMeteo },
   { id: 'met.no', fn: metNo },
   { id: 'wttr.in', fn: wttr }
@@ -151,9 +170,10 @@ var SOURCES = [
 
 // Un fornitore che non risponde entro otto secondi va scartato, altrimenti
 // il pannello resta appeso ad aspettarlo.
-function ask(url){
+function ask(url, extraHeaders){
   var controller = window.AbortController ? new AbortController() : null;
   var opzioni = { cache: 'no-store' };
+  if (extraHeaders) opzioni.headers = extraHeaders;
   if (controller) opzioni.signal = controller.signal;
 
   var scaduto = setTimeout(function(){

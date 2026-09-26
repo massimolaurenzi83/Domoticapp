@@ -120,7 +120,8 @@ function fill(pattern, cam, password, which){
   var fam = FAMILIES[cam.family] || FAMILIES.icsee;
   return pattern
     .split('{user}').join(cam.user || 'admin')
-    .split('{pass}').join(password || '')
+    // Una password con @ : # o / romperebbe l indirizzo: va codificata.
+    .split('{pass}').join(encodeURIComponent(password || ''))
     .split('{ip}').join(cam.ip || '')
     .split('{onvifPort}').join(String(fam.onvifPort || 8899));
 }

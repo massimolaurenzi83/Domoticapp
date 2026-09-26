@@ -97,26 +97,31 @@ function check(){
 
   var now = new Date();
   var minutes = now.getHours() * 60 + now.getMinutes();
-  var day = now.getDay();
   var lead = Math.max(0, parseInt(settings.alarmSunriseMinutes, 10) || 20);
 
   var list = loadAlarms();
   for (var i = 0; i < list.length; i++) {
     var a = list[i];
     if (!a.enabled) continue;
-    if (a.days.indexOf(day) === -1) continue;
 
     var at = toMinutes(a.time);
     var start = at - lead;
-    // Una sveglia poco dopo mezzanotte ha la sua alba il giorno prima.
-    var inWindow = start < 0
-      ? (minutes >= start + 1440 || minutes <= at)
-      : (minutes >= start && minutes <= at + 2);
 
-    if (!inWindow) continue;
+    // Una sveglia poco dopo mezzanotte ha la sua alba la sera prima. In
+    // quel caso i minuti di adesso si contano rispetto alla mezzanotte che
+    // arriva, e il giorno da controllare e quello della sveglia, cioe domani.
+    var rel = minutes;
+    var giornoSveglia = now.getDay();
+    if (start < 0 && minutes >= start + 1440) {
+      rel = minutes - 1440;
+      giornoSveglia = (giornoSveglia + 1) % 7;
+    }
+    if (a.days.indexOf(giornoSveglia) === -1) continue;
+    if (rel < start || rel > at + 2) continue;
 
-    var stamp = now.toDateString() + ' ' + a.id;
-    var progress = lead === 0 ? 1 : Math.min(1, Math.max(0, (minutes - start) / lead));
+    var dataSveglia = new Date(now.getTime() + (rel !== minutes ? 86400000 : 0));
+    var stamp = dataSveglia.toDateString() + ' ' + a.id;
+    var progress = lead === 0 ? 1 : Math.min(1, Math.max(0, (rel - start) / lead));
     runStage(a, progress, stamp);
     return;
   }

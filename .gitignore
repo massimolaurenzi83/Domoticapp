@@ -1,3 +1,8 @@
 node_modules/
 .DS_Store
 Thumbs.db
+
+# Credenziali del servizio: restano solo sul computer
+worker/credenziali.txt
+worker/.wrangler/
+.wrangler/

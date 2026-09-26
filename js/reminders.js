@@ -22,6 +22,13 @@ export function allReminders(){
 
 function persist(list){
   try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) {}
+  changed();
+}
+
+// Avvisa l allineamento che c e qualcosa da consegnare agli altri
+// dispositivi. Non lo importiamo direttamente per non legare i moduli.
+function changed(){
+  try { window.dispatchEvent(new Event('casa-dati')); } catch (e) {}
 }
 
 export function addReminder(text, when, profileId){
@@ -100,7 +107,8 @@ export function parseWhen(phrase, now){
   } else if ((m = take(/\balle\s+(\d{1,2})(?:[:.e]\s?(\d{2}))?\b/))) {
     if (!d) d = startOfDay(base);
     var h = parseInt(m[1], 10);
-    if (h < 8 && /\bsera\b|\bpomeriggio\b/.test(t)) h += 12;
+    // Tutte le ore del pomeriggio e della sera, non solo fino alle otto.
+    if (h < 12 && /\bsera\b|\bpomeriggio\b|\bstasera\b/.test(t)) h += 12;
     d.setHours(h, m[2] ? parseInt(m[2], 10) : 0, 0, 0);
     if (d < base && !/\bdomani\b|\boggi\b/.test(t)) d.setDate(d.getDate() + 1);
   } else if (d) {

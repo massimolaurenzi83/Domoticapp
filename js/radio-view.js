@@ -17,6 +17,7 @@ export function renderRadio(body){
   wrap.appendChild(nowBar());
 
   var grid = document.createElement('div');
+  grid.className = 'radio-grid';
   grid.style.cssText = 'flex:1;overflow-y:auto;display:grid;' +
     'grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;align-content:start;';
   wrap.appendChild(grid);
@@ -48,7 +49,7 @@ function searchBar(body){
     'font-family:inherit;font-size:17px;padding:15px;border-radius:10px;';
 
   function go(){
-    var grid = body.querySelector('div > div:last-child');
+    var grid = body.querySelector('.radio-grid');
     if (!field.value.trim()) return;
     loading(grid, 'Cerco...');
     searchStations(field.value.trim(), 40)
@@ -71,7 +72,7 @@ function searchBar(body){
   favBtn.className = 'btn';
   favBtn.textContent = 'Preferite';
   favBtn.addEventListener('click', function(){
-    var grid = body.querySelector('div > div:last-child');
+    var grid = body.querySelector('.radio-grid');
     var favs = favourites();
     if (!favs.length) loading(grid, 'Nessuna preferita. Tieni premuto su una stazione per aggiungerla.');
     else fill(grid, favs, body);
@@ -88,6 +89,7 @@ function nowBar(){
   bar.style.cssText = 'background:#14171b;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;';
 
   var name = document.createElement('div');
+  name.className = 'radio-now';
   name.style.cssText = 'flex:1;font-size:17px;';
   var cur = playing() || lastStation();
   name.textContent = cur ? cur.name : 'Nessuna stazione in onda';
@@ -159,7 +161,7 @@ function fill(grid, list, body, title){
 
       card.addEventListener('click', function(){
         play(st);
-        var bar = body.querySelector('div > div:nth-child(2) > div');
+        var bar = body.querySelector('.radio-now');
         if (bar) bar.textContent = st.name;
       });
 

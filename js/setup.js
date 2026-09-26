@@ -7,7 +7,7 @@
 // tablet fa un percorso corto di due campi e poi si allinea da solo.
 
 import { settings, save } from './config.js';
-import { setSyncConfig, startSync } from './sync.js';
+import { setSyncConfig, startSync, touch } from './sync.js';
 import { enableNotifications, pushBlockedReason } from './push.js';
 
 var DONE_KEY = 'domapp.setup.done.v1';
@@ -165,7 +165,7 @@ function note(card, text){
 
 function stepWelcome(card){
   title(card, 'Benvenuto');
-  para(card, 'Quattro domande facili e hai finito. Questo tablet e quello fisso al muro, oppure il secondo?');
+  para(card, 'Quattro domande facili e hai finito. Questo e il tablet fisso al muro, oppure un altro dispositivo, come il secondo tablet o un telefono?');
 
   var row = document.createElement('div');
   row.className = 'setup-choice';
@@ -184,7 +184,7 @@ function stepWelcome(card){
   var second = document.createElement('button');
   second.type = 'button';
   second.className = 'setup-big';
-  second.innerHTML = '<strong>Il secondo</strong><span>Si aggancia in due campi</span>';
+  second.innerHTML = '<strong>Un altro dispositivo</strong><span>Secondo tablet o telefono</span>';
   second.addEventListener('click', function(){
     role = 'second';
     steps = [stepWelcome, stepJoin];
@@ -282,10 +282,13 @@ function stepPlace(card){
       settings.placeName = found.name;
       settings.lat = String(found.latitude);
       settings.lon = String(found.longitude);
+      save();
+      touch('placeName', 'lat', 'lon');
     } else if (input.value.trim()) {
       settings.placeName = input.value.trim();
+      save();
+      touch('placeName');
     }
-    save();
     next();
   }});
 }
@@ -308,6 +311,7 @@ function stepPeople(card){
     settings.profile2Name = b.value.trim();
     settings.settingsPin = pin.value.replace(/\D/g, '');
     save();
+    touch('profile1Name', 'profile2Name', 'settingsPin');
     next();
   }});
 }
@@ -324,6 +328,7 @@ function stepName(card){
   buttons(card, { back: true, onNext: function(){
     settings.wakeWord = name.value.trim().toLowerCase() || 'ambrogio';
     save();
+    touch('wakeWord');
     next();
   }});
 }
@@ -366,6 +371,7 @@ function stepHours(card){
     settings.sleepStart = s1.value;
     settings.sleepEnd = s2.value;
     save();
+    touch('dayStart', 'dayEnd', 'sleepStart', 'sleepEnd');
     next();
   }});
 }
@@ -373,32 +379,18 @@ function stepHours(card){
 // ---- servizio ----
 
 function stepService(card){
-  title(card, 'Il servizio di collegamento');
-  para(card, 'Tiene allineati i due tablet e fa arrivare le notifiche sul telefono. E gratuito.');
+  title(card, 'Collegare i dispositivi');
+  para(card, 'Il servizio di collegamento tiene insieme i due tablet e i telefoni, e porta le notifiche fuori casa. E gratuito e si installa dal computer.');
 
   where(card, [
-    'Apri il sito di Cloudflare e crea un account gratuito.',
-    'Segui le istruzioni scritte in cima al file del servizio, dentro la cartella worker del progetto.',
-    'Al termine ti verra dato un indirizzo che finisce con workers.dev: quello va nel primo campo.',
-    'La parola condivisa la scegli tu adesso. Inventane una lunga e scrivila identica sul secondo tablet.'
+    'Sul computer, nella cartella del progetto, esegui npx wrangler login: si apre il browser per entrare in Cloudflare, anche con un account nuovo e gratuito.',
+    'Poi esegui node worker/installa.mjs. Fa tutto da solo e alla fine ti mostra un link.',
+    'Manda quel link a te stesso, per email o WhatsApp, e aprilo su questo tablet: il collegamento si compila da solo.',
+    'Se preferisci, puoi scrivere qui sotto i due valori, che trovi anche nel file worker/credenziali.txt.'
   ]);
 
-  var url = field(card, 'Indirizzo del servizio', settings.syncUrl || '',
-                  'https://qualcosa.workers.dev');
-  var token = field(card, 'Parola condivisa', settings.syncToken || '', '');
-
-  if (!token.value) token.value = freshToken();
-
-  var rigenera = document.createElement('button');
-  rigenera.type = 'button';
-  rigenera.className = 'btn';
-  rigenera.style.marginTop = '4px';
-  rigenera.textContent = 'Generane un altra';
-  rigenera.addEventListener('click', function(){ token.value = freshToken(); });
-  card.appendChild(rigenera);
-
-  para(card, 'La parola l ho generata io lunga e casuale, perche una inventata a mano si indovina. Va copiata identica nel servizio e sul secondo tablet.');
-
+  var url = field(card, 'Indirizzo del servizio', settings.syncUrl || '', 'https://casa-ponte.nome.workers.dev');
+  var token = field(card, 'Parola condivisa', settings.syncToken || '', 'quattro gruppi da quattro, per esempio ab3k-...');
   var result = note(card, '');
 
   var test = document.createElement('button');
@@ -413,7 +405,9 @@ function stepService(card){
       headers: { 'X-Casa-Token': token.value.trim() }
     }).then(function(r){
       if (r.ok) result.textContent = 'Funziona. Il servizio risponde correttamente.';
-      else if (r.status === 401) result.textContent = 'Il servizio risponde ma rifiuta la parola condivisa. Controlla che sia identica a quella impostata la.';
+      else if (r.status === 401) result.textContent = 'Il servizio risponde ma rifiuta la parola. Controlla di averla scritta identica, trattini compresi.';
+      else if (r.status === 429) result.textContent = 'Troppi tentativi con una parola sbagliata. Aspetta un quarto d ora.';
+      else if (r.status === 500) result.textContent = 'Il servizio non ha ancora la parola impostata: rilancia l installazione sul computer.';
       else result.textContent = 'Il servizio risponde con un errore: ' + r.status;
     }).catch(function(){
       result.textContent = 'Non risponde. Controlla l indirizzo, oppure vai avanti e sistemalo dopo.';
@@ -426,68 +420,8 @@ function stepService(card){
     settings.syncToken = token.value.trim();
     save();
     setSyncConfig(settings.syncUrl, settings.syncToken);
-    startSync(function(){});
+    startSync();
     next();
-  }});
-}
-
-// Una parola inventata a mano si indovina in poche ore. Questa esce dal
-// generatore di numeri casuali del browser, quello usato per la
-// crittografia, ed e lunga abbastanza da rendere inutile ogni tentativo.
-function freshToken(){
-  var bytes = new Uint8Array(24);
-  (window.crypto || window.msCrypto).getRandomValues(bytes);
-  var out = '';
-  var alfabeto = 'abcdefghijkmnopqrstuvwxyz23456789';
-  for (var i = 0; i < bytes.length; i++) out += alfabeto[bytes[i] % alfabeto.length];
-  return out;
-}
-
-// ---- tuya ----
-
-function stepTuya(card){
-  title(card, 'Le luci e il citofono');
-  para(card, 'Il citofono passa da Tuya. Le luci HeySmart quasi certamente anche, perche la maggior parte dei marchi italiani usa quella infrastruttura con la propria veste grafica.');
-
-  where(card, [
-    'Prima una verifica di due minuti: installa l app Smart Life ed entra con le stesse credenziali che usi su HeySmart. Se le luci compaiono, siamo a posto.',
-    'Se non compaiono, prova a rifare la registrazione dei dispositivi dentro Smart Life: sono gli stessi apparecchi.',
-    'Poi vai su iot.tuya.com e registrati gratuitamente.',
-    'Crea un progetto di tipo Cloud scegliendo Europa centrale come zona.',
-    'Nella pagina del progetto trovi Access ID e Access Secret: sono i due codici da incollare qui sotto.',
-    'Nella sezione Devices, scheda Link App Account, premi Add App Account e inquadra il codice che compare con l app Smart Life.'
-  ]);
-
-  var id = field(card, 'Access ID', '', 'incolla qui');
-  var secret = field(card, 'Access Secret', '', 'incolla qui');
-  var esito = note(card, settings.tuyaConfigured ? 'Le chiavi sono gia state affidate al servizio.' : '');
-
-  para(card, 'I codici partono verso il servizio e non vengono mai scritti sul tablet. Per questo il campo resta vuoto anche dopo averli inseriti.');
-  note(card, 'Se le luci non compaiono in Smart Life, vuol dire che HeySmart non usa Tuya. In quel caso resteranno fuori dal pannello, come il Broadlink, finche non ci sara un ponte in casa.');
-
-  buttons(card, { back: true, skip: true, onNext: function(){
-    var a = id.value.trim();
-    var b = secret.value.trim();
-    if (!a || !b) { next(); return; }
-
-    if (!settings.syncUrl) {
-      esito.textContent = 'Senza il servizio non ho dove custodire le chiavi. Torna indietro e impostalo prima.';
-      return;
-    }
-
-    esito.textContent = 'Invio le chiavi al servizio...';
-    fetch(String(settings.syncUrl).replace(/\/+$/, '') + '/secrets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Casa-Token': settings.syncToken },
-      body: JSON.stringify({ tuyaId: a, tuyaSecret: b })
-    }).then(function(r){
-      if (!r.ok) throw new Error('il servizio ha risposto ' + r.status);
-      settings.tuyaConfigured = true;
-      save();
-      next();
-    }).catch(function(e){
-      esito.textContent = 'Non sono riuscito a consegnarle: ' + e.message;
-    });
   }});
 }
 
@@ -562,7 +496,7 @@ function stepPermissions(card){
 function stepFork(card){
   title(card, 'Hai finito');
   para(card, 'Il pannello e gia pronto: orologio, meteo, voce, promemoria, spesa, timer e radio.');
-  para(card, 'Restano due cose facoltative, da fare al computer in una decina di minuti: collegare i due tablet fra loro e collegare le luci. Puoi farle quando vuoi dalle impostazioni.');
+  para(card, 'Resta una cosa facoltativa, da fare al computer in una decina di minuti: collegare fra loro i due tablet e i telefoni, cosi puoi comandare tutto anche da fuori casa. Puoi farla quando vuoi dalle impostazioni.');
 
   var row = document.createElement('div');
   row.className = 'setup-choice';
@@ -578,7 +512,7 @@ function stepFork(card){
   now.className = 'setup-big';
   now.innerHTML = '<strong>Facciamole ora</strong><span>Ho tempo e un computer</span>';
   now.addEventListener('click', function(){
-    steps = steps.concat([stepService, stepTuya, stepHours, stepHandoff]);
+    steps = steps.concat([stepService, stepHours, stepHandoff]);
     next();
   });
 
@@ -590,44 +524,36 @@ function stepFork(card){
 // ---- passaggio al secondo tablet ----
 
 function stepHandoff(card){
-  title(card, 'Il secondo tablet');
-  para(card, 'Sul secondo tablet apri lo stesso indirizzo, scegli Il secondo e ricopia questi due valori.');
-
-  var box = document.createElement('div');
-  box.className = 'setup-handoff';
-
-  function line(label, value){
-    var d = document.createElement('div');
-    var l = document.createElement('div');
-    l.className = 'setup-note';
-    l.textContent = label;
-    var v = document.createElement('div');
-    v.className = 'setup-value';
-    v.textContent = value || 'non impostato';
-    d.appendChild(l);
-    d.appendChild(v);
-    box.appendChild(d);
-  }
-
-  line('Indirizzo del servizio', settings.syncUrl);
-  line('Parola condivisa', settings.syncToken);
-  card.appendChild(box);
-
-  para(card, 'Tutto il resto passa da solo entro mezzo minuto.');
+  title(card, 'Gli altri dispositivi');
+  para(card, 'Sul secondo tablet e sui telefoni apri lo stesso link che ti ha dato l installazione. Si collegano da soli e ricevono stanze, promemoria, spesa e impostazioni.');
 
   if (!settings.syncUrl) {
-    note(card, 'Non hai impostato il servizio, quindi i due tablet resteranno ' +
-      'indipendenti. Puoi farlo piu avanti dalle impostazioni e allineare tutto allora.');
+    note(card, 'Non hai ancora impostato il servizio, quindi per ora ogni dispositivo resta indipendente. Puoi farlo piu avanti dalle impostazioni.');
+  } else {
+    para(card, 'Se il link non ce l hai sotto mano, sull altro dispositivo scegli Un altro dispositivo e scrivi questi due valori.');
+    var box = document.createElement('div');
+    box.className = 'setup-handoff';
+    [['Indirizzo del servizio', settings.syncUrl], ['Parola condivisa', settings.syncToken]].forEach(function(r){
+      var d = document.createElement('div');
+      var l = document.createElement('div');
+      l.className = 'setup-note';
+      l.textContent = r[0];
+      var v = document.createElement('div');
+      v.className = 'setup-value';
+      v.textContent = r[1] || 'non impostato';
+      d.appendChild(l);
+      d.appendChild(v);
+      box.appendChild(d);
+    });
+    card.appendChild(box);
   }
 
   buttons(card, { back: true, label: 'Ho finito', onNext: close });
 }
 
-// ---- percorso corto del secondo tablet ----
-
 function stepJoin(card){
-  title(card, 'Aggancia al principale');
-  para(card, 'Copia i due valori che il principale mostra alla fine. Identici, maiuscole comprese.');
+  title(card, 'Collega questo dispositivo');
+  para(card, 'Il modo piu semplice: apri su questo dispositivo il link che ti ha dato l installazione, e si collega da solo. In alternativa scrivi qui i due valori.');
 
   var url = field(card, 'Indirizzo del servizio', settings.syncUrl || '',
                   'https://qualcosa.workers.dev');
@@ -650,7 +576,7 @@ function stepJoin(card){
     }).then(function(r){
       if (r.ok) {
         result.textContent = 'Collegato. Sto scaricando la configurazione dal tablet principale.';
-        startSync(function(){});
+        startSync();
         setTimeout(close, 2200);
       } else if (r.status === 401) {
         result.textContent = 'La parola condivisa non corrisponde. Controllala sul tablet principale.';

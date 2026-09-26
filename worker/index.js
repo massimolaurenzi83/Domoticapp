@@ -4,13 +4,12 @@
 // chiavi di Tuya, Spotify e Google Calendar, che non possono stare in una
 // pagina pubblica. Gira gratuitamente su Cloudflare Workers.
 //
-// Pubblicazione:
-//   npm create cloudflare@latest casa-ponte
-//   sostituisci src/index.js con questo file
-//   npx wrangler kv namespace create CASA
-//   aggiungi il binding a wrangler.toml e imposta il segreto:
-//   npx wrangler secret put CASA_TOKEN
-//   npx wrangler deploy
+// Installazione: dalla cartella del progetto sul computer
+//   npx wrangler login
+//   node worker/installa.mjs
+// Lo script crea il deposito dei dati, genera la parola condivisa e le
+// chiavi delle notifiche, pubblica il servizio e stampa il link che collega
+// ogni dispositivo in un tocco.
 
 import { sendToAll } from './push.js';
 
@@ -28,6 +27,14 @@ function json(body, status){
   });
 }
 
+async function hashBreve(testo){
+  var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(testo));
+  var b = new Uint8Array(buf);
+  var out = '';
+  for (var i = 0; i < 6; i++) out += ('0' + b[i].toString(16)).slice(-2);
+  return out;
+}
+
 function confrontoSicuro(a, b){
   if (a.length !== b.length) return false;
   var diff = 0;
@@ -41,25 +48,30 @@ export default {
 
     var url = new URL(request.url);
 
-    // Chi sbaglia il token troppe volte di fila viene messo in attesa.
-    // Senza questo, una parola corta si indovina provandole tutte.
-    var chiamante = request.headers.get('CF-Connecting-IP') || 'ignoto';
-    var chiaveTentativi = 'tentativi:' + chiamante;
-    var tentativi = parseInt((await env.CASA.get(chiaveTentativi)) || '0', 10);
-
-    if (tentativi >= 10) {
-      return json({ error: 'troppi tentativi, riprova fra un quarto d ora' }, 429);
+    // Senza parola impostata il servizio resta chiuso. Prima, una parola
+    // vuota coincideva con una richiesta senza parola, e il servizio era
+    // aperto a chiunque.
+    if (!env.CASA_TOKEN) {
+      return json({ error: 'parola condivisa non impostata sul servizio' }, 500);
     }
 
-    // Il confronto non deve rivelare quanti caratteri erano giusti: per
-    // questo scorre sempre tutta la parola invece di fermarsi al primo
-    // carattere diverso.
-    if (!confrontoSicuro(request.headers.get('X-Casa-Token') || '', env.CASA_TOKEN || '')) {
+    // Chi sbaglia la parola troppe volte di fila viene messo in attesa. Il
+    // conteggio riguarda solo quella parola sbagliata: tutti i dispositivi
+    // di casa escono dallo stesso indirizzo internet, e un vecchio tablet
+    // con la parola scaduta non deve bloccare anche gli altri.
+    var data = request.headers.get('X-Casa-Token') || '';
+    var chiamante = request.headers.get('CF-Connecting-IP') || 'ignoto';
+    var impronta = await hashBreve(data);
+    var chiaveTentativi = 'tentativi:' + chiamante + ':' + impronta;
+
+    if (!confrontoSicuro(data, env.CASA_TOKEN)) {
+      var tentativi = parseInt((await env.CASA.get(chiaveTentativi)) || '0', 10);
+      if (tentativi >= 10) {
+        return json({ error: 'troppi tentativi, riprova fra un quarto d ora' }, 429);
+      }
       await env.CASA.put(chiaveTentativi, String(tentativi + 1), { expirationTtl: 900 });
       return json({ error: 'token rifiutato' }, 401);
     }
-
-    if (tentativi > 0) await env.CASA.delete(chiaveTentativi);
 
     // ---------- notifiche ----------
 
@@ -174,24 +186,30 @@ export default {
     // ripartire un tablet nuovo, o uno che ha perso i dati, senza
     // riconfigurare niente a mano.
     if (url.pathname === '/backup') {
+      // Ogni dispositivo ha la sua copia: prima c era una copia sola, e il
+      // telefono sovrascriveva quella del tablet principale.
+      var indice = JSON.parse((await env.CASA.get('backups')) || '[]');
+
       if (request.method === 'POST') {
         var copia = await request.json();
-        if (!copia || !copia.data) return json({ error: 'copia non valida' }, 400);
-
-        // Teniamo la piu recente e la precedente, cosi una copia sbagliata
-        // non cancella l ultima buona.
-        var vecchia = await env.CASA.get('backup');
-        if (vecchia) await env.CASA.put('backup_prec', vecchia);
-        await env.CASA.put('backup', JSON.stringify(copia));
+        if (!copia || !copia.data || !copia.device || !copia.device.id) {
+          return json({ error: 'copia non valida' }, 400);
+        }
+        var chiave = 'backup:' + String(copia.device.id).slice(0, 40);
+        await env.CASA.put(chiave, JSON.stringify(copia));
+        indice = indice.filter(function(x){ return x.id !== copia.device.id; });
+        indice.push({ id: copia.device.id, label: copia.device.label || '', role: copia.device.role || '', at: copia.at || Date.now() });
+        await env.CASA.put('backups', JSON.stringify(indice.slice(-10)));
         return json({ ok: true, at: copia.at });
       }
 
       if (request.method === 'GET') {
-        var quale = url.searchParams.get('quale') === 'precedente' ? 'backup_prec' : 'backup';
-        var salvata = await env.CASA.get(quale);
+        var quale = url.searchParams.get('device');
+        if (!quale) return json(indice);
+        var salvata = await env.CASA.get('backup:' + String(quale).slice(0, 40));
         return salvata
           ? new Response(salvata, { headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) })
-          : json(null);
+          : json(null, 404);
       }
     }
 
@@ -201,7 +219,7 @@ export default {
 
     if (request.method === 'GET') {
       var stored = await env.CASA.get('state');
-      return json(stored ? JSON.parse(stored) : { settings: {}, stamps: {}, reminders: [], messages: [], sentinel: null });
+      return json(stored ? JSON.parse(stored) : { settings: {}, stamps: {}, reminders: [], shopping: [], messages: [], sentinel: null });
     }
 
     if (request.method === 'PUT') {
@@ -210,11 +228,11 @@ export default {
       catch (e) { return json({ error: 'corpo non valido' }, 400); }
 
       var previous = await env.CASA.get('state');
-      var base = previous ? JSON.parse(previous) : { settings: {}, stamps: {}, reminders: [], messages: [], sentinel: null };
+      var base = previous ? JSON.parse(previous) : { settings: {}, stamps: {}, reminders: [], shopping: [], messages: [], sentinel: null };
       var merged = merge(base, incoming);
 
       await env.CASA.put('state', JSON.stringify(merged));
-      return json({ ok: true });
+      return json({ ok: true, sentinel: merged.sentinel });
     }
 
     return json({ error: 'metodo non ammesso' }, 405);
@@ -227,36 +245,24 @@ function merge(base, incoming){
   var out = {
     settings: Object.assign({}, base.settings),
     stamps: Object.assign({}, base.stamps),
-    reminders: [],
+    reminders: mergeList(base.reminders, incoming.reminders, function(a, b){ return (a.when || 0) - (b.when || 0); }),
+    shopping: mergeList(base.shopping, incoming.shopping, null),
     messages: [],
     sentinel: base.sentinel || null
   };
 
+  // Impostazioni: vince solo un valore scelto da qualcuno e piu recente.
+  // Un valore senza marcatura e un valore di fabbrica, e non deve
+  // sovrascrivere la scelta di una persona.
   var theirs = incoming.stamps || {};
   for (var k in (incoming.settings || {})) {
-    if ((theirs[k] || 0) >= (out.stamps[k] || 0)) {
+    var t = theirs[k] || 0;
+    var m = out.stamps[k] || 0;
+    if (!(k in out.settings) || t > m) {
       out.settings[k] = incoming.settings[k];
-      out.stamps[k] = theirs[k] || Date.now();
+      out.stamps[k] = t;
     }
   }
-
-  var byId = {};
-  var lists = [base.reminders || [], incoming.reminders || []];
-  for (var i = 0; i < lists.length; i++) {
-    for (var j = 0; j < lists[i].length; j++) {
-      var r = lists[i][j];
-      if (!r || !r.id) continue;
-      if (!byId[r.id] || (r.editedAt || 0) > (byId[r.id].editedAt || 0)) byId[r.id] = r;
-    }
-  }
-
-  var cutoff = Date.now() - 30 * 86400000;
-  for (var id in byId) {
-    // I segnaposto delle cancellazioni si buttano dopo un mese.
-    if (byId[id].deleted && (byId[id].editedAt || 0) < cutoff) continue;
-    out.reminders.push(byId[id]);
-  }
-  out.reminders.sort(function(a, b){ return (a.when || 0) - (b.when || 0); });
 
   // I messaggi dell interfono durano un giorno e poi spariscono.
   var msgById = {};
@@ -264,33 +270,57 @@ function merge(base, incoming){
   var dayAgo = Date.now() - 86400000;
   for (var a = 0; a < msgLists.length; a++) {
     for (var b = 0; b < msgLists[a].length; b++) {
-      var m = msgLists[a][b];
-      if (m && m.id && m.at > dayAgo) msgById[m.id] = m;
+      var msg = msgLists[a][b];
+      if (msg && msg.id && msg.at > dayAgo) msgById[msg.id] = msg;
     }
   }
   for (var mid in msgById) out.messages.push(msgById[mid]);
   out.messages.sort(function(x, y){ return x.at - y.at; });
 
-  // Della sentinella tiene solo la decisione piu recente. Il confronto usa
-  // l ora del servizio, non quella dei dispositivi: gli orologi di tablet e
-  // telefoni si sfasano, e un dispositivo avanti di dieci minuti
-  // scarterebbe per sempre i comandi degli altri.
-  var qui = base.sentinel;
-  var la = incoming.sentinel;
-
-  if (la) {
-    var nuova = {
-      armed: !!la.armed,
-      at: la.at || 0,
-      from: la.from || 'sconosciuto',
-      serverAt: Date.now()
-    };
-    // Arriva dallo stesso dispositivo che l aveva gia mandata: non e una
-    // decisione nuova, e solo la ripetizione della stessa.
-    var stessa = qui && qui.armed === nuova.armed && qui.at === nuova.at;
-    if (!qui || (!stessa && nuova.at !== qui.at)) out.sentinel = nuova;
-    else out.sentinel = qui;
+  // Sentinella. Una decisione senza marcatura del servizio e nuova: e
+  // appena stata presa su un dispositivo, quindi e la piu recente, e riceve
+  // qui la marcatura. Una decisione gia marcata e solo l eco di qualcosa
+  // gia registrato: vince solo se e davvero piu recente di quella in
+  // memoria. Cosi un tablet che ripete la sua vecchia decisione non annulla
+  // quella appena presa dal telefono.
+  var qui = base.sentinel || null;
+  var la = incoming.sentinel || null;
+  if (la && typeof la.armed === 'boolean') {
+    if (!la.serverAt) {
+      var stessa = qui && qui.at === la.at && qui.armed === la.armed && qui.from === la.from;
+      if (!stessa) {
+        out.sentinel = { armed: la.armed, at: la.at || 0, from: la.from || 'sconosciuto', serverAt: Date.now() };
+      }
+    } else if (!qui || la.serverAt > (qui.serverAt || 0)) {
+      out.sentinel = la;
+    }
   }
 
+  return out;
+}
+
+// Fonde due liste di voci con identificativo: per ogni voce vince la
+// modifica piu recente. I segnaposto delle cancellazioni si tengono un
+// mese, poi si buttano.
+function mergeList(a, b, sortFn){
+  var byId = {};
+  var order = [];
+  var lists = [a || [], b || []];
+  for (var i = 0; i < lists.length; i++) {
+    for (var j = 0; j < lists[i].length; j++) {
+      var r = lists[i][j];
+      if (!r || !r.id) continue;
+      if (!byId[r.id]) { byId[r.id] = r; order.push(r.id); }
+      else if ((r.editedAt || 0) > (byId[r.id].editedAt || 0)) byId[r.id] = r;
+    }
+  }
+  var cutoff = Date.now() - 30 * 86400000;
+  var out = [];
+  for (var k = 0; k < order.length; k++) {
+    var v = byId[order[k]];
+    if (v.deleted && (v.editedAt || 0) < cutoff) continue;
+    out.push(v);
+  }
+  if (sortFn) out.sort(sortFn);
   return out;
 }

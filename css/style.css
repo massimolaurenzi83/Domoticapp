@@ -125,7 +125,7 @@ html,body{
 }
 .sheet-inner{
   background:var(--card);border-radius:var(--radius);
-  padding:28px;width:640px;max-height:86%;overflow-y:auto;
+  padding:28px;width:640px;max-width:94%;max-height:86%;overflow-y:auto;overflow-x:hidden;
 }
 .sheet-inner h2{margin:0 0 20px;font-size:22px;font-weight:400;}
 .set-grid{display:flex;flex-direction:column;gap:2px;}
@@ -167,10 +167,16 @@ html,body{
 [hidden]{display:none !important;}
 
 /* ---------- voce ---------- */
-#mic-dot{position:absolute;top:14px;right:16px;z-index:18;pointer-events:none;}
-#mic-dot span{
-  display:block;width:9px;height:9px;border-radius:50%;
-  background:#4a8fe0;opacity:.75;
+/* Indicatore del microfono: una scritta leggibile da lontano, non un
+   puntino. Sta in basso a destra, nello stesso punto degli avvisi. */
+#mic-dot{
+  position:absolute;bottom:14px;right:16px;z-index:18;pointer-events:none;
+  display:flex;align-items:center;gap:10px;
+  background:#132434;color:#cfe1f5;font-size:17px;padding:9px 16px;border-radius:999px;
+}
+#mic-dot[hidden]{display:none;}
+#mic-dot .mic-pulse{
+  width:14px;height:14px;border-radius:50%;background:#4a8fe0;
   animation:breathe 2.6s ease-in-out infinite;
 }
 @keyframes breathe{0%,100%{opacity:.22;}50%{opacity:.8;}}
@@ -201,7 +207,9 @@ html,body{
 .timer-left{font-size:30px;font-weight:200;font-variant-numeric:tabular-nums;}
 .timer-name{font-size:14px;color:var(--fg-dim);}
 .tab{white-space:nowrap;}
-.tabs{overflow-x:auto;}
+/* Le schede vanno a capo invece di scorrere: su un pannello a muro nessuno
+   scoprirebbe quelle nascoste a destra. */
+.tabs{flex-wrap:wrap;row-gap:6px;}
 
 /* ---------- prima configurazione ---------- */
 #setup{
@@ -285,3 +293,29 @@ html,body{
 .ed-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;}
 .ed-field span{display:block;font-size:12px;color:var(--fg-dim);margin:2px 0 4px;}
 .ed-msg{color:#f0b429;font-size:15px;margin-top:14px;min-height:20px;}
+
+/* ---------- telefoni ---------- */
+@media (max-width: 760px){
+  :root{--pad:14px;}
+  #screen-ambient{flex-direction:column;justify-content:center;padding:24px 16px;gap:18px;overflow-y:auto;}
+  .ambient-main{flex:none;text-align:center;}
+  .clock-big{font-size:22vw;letter-spacing:-2px;}
+  .ambient-side{width:100%;max-height:none;}
+  .control-head{flex-wrap:wrap;gap:10px;}
+  .tabs{order:3;width:100%;}
+  .room-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));}
+  .sheet-inner{padding:18px;}
+  .set-row{flex-wrap:wrap;}
+  .ed-grid{grid-template-columns:1fr;}
+  .setup-card{padding:24px 20px;}
+  .setup-times{grid-template-columns:1fr;}
+  #voice-bar{padding:40px 16px 20px;}
+  .vb-reply{font-size:24px;}
+}
+
+/* ---------- tasto Indietro ---------- */
+.btn-back{
+  background:var(--card-hi);border:0;color:var(--fg);font-family:inherit;
+  font-size:18px;padding:12px 20px;border-radius:12px;flex:none;
+}
+.sheet-inner > .btn-back{margin-bottom:16px;}

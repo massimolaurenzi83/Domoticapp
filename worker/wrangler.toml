@@ -1,0 +1,12 @@
+# Configurazione del servizio di collegamento su Cloudflare Workers.
+# Non va modificata a mano: la compila installa.mjs, che crea anche il
+# deposito dei dati e ne scrive qui l identificativo.
+
+name = "casa-ponte"
+main = "index.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "CASA"
+id = "DA_CREARE"

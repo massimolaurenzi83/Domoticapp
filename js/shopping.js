@@ -49,6 +49,13 @@ export function loadItems(){
 
 function persist(list){
   try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) {}
+  changed();
+}
+
+// Avvisa l allineamento che c e qualcosa da consegnare agli altri
+// dispositivi. Non lo importiamo direttamente per non legare i moduli.
+function changed(){
+  try { window.dispatchEvent(new Event('casa-dati')); } catch (e) {}
 }
 
 // Ripulisce la frase detta a voce e ne ricava la cosa da comprare.

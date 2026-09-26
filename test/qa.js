@@ -7,7 +7,14 @@
 //   await new Function('return (async () => {' + src + '})()')();
 //
 // Restituisce quante prove sono passate e il dettaglio di quelle fallite.
-// Attenzione: azzera promemoria, spesa, timer e archivio degli scatti.
+//
+// ATTENZIONE, da eseguire solo su un pannello di prova, mai su quello vero:
+// azzera promemoria, spesa, timer, archivio degli scatti, sveglie e
+// messaggi; rimette stanze e dispositivi di esempio; svuota una volta la
+// memoria del browser per provare il ripristino; lascia la sentinella
+// disarmata. Non tocca il servizio di collegamento: se il pannello e
+// collegato, si scollega durante la prova per non mandare dati finti agli
+// altri dispositivi.
 
 // Collaudo funzionale completo, eseguito dentro la pagina.
 // Ogni prova dice cosa verifica e cosa e successo davvero.
@@ -28,6 +35,12 @@ function prova(area, cosa, condizione, dettaglio) {
  'domapp.cameras.v1','domapp.doorbell.v1'].forEach(k => localStorage.removeItem(k));
 
 const cfg = await import('/js/config.js');
+const syncMod = await import('/js/sync.js');
+syncMod.stopSync();
+syncMod.setSyncConfig('', '');
+cfg.settings.syncUrl = '';
+cfg.settings.syncToken = '';
+cfg.save();
 const dev = await import('/js/devices.js');
 dev.resetToExample();
 dev.setLive(false);
@@ -416,30 +429,76 @@ prova('Sicurezza', 'chi apre il sito senza la parola condivisa non vede casa tua
 
 // ---------- 24. comando a distanza ----------
 // Il telefono deve poter armare la sentinella mentre sei gia partito.
-// L ordine delle decisioni lo decide il servizio, perche gli orologi dei
-// dispositivi si sfasano.
+// L ordine lo decide il servizio con la sua marcatura, perche gli orologi
+// dei dispositivi si sfasano.
 
 localStorage.removeItem('domapp.sentinel.decision.v1');
 pres.disarmSentinel();
+// Il servizio registra la decisione del tablet e le assegna la sua marcatura.
+pres.adoptServerStamp(Object.assign({}, pres.lastDecision(), { serverAt: 1000 }));
 
-const armatoDaFuori = pres.applyRemoteDecision(
-  { armed: true, at: Date.now() + 1, from: 'telefono', serverAt: 1000 });
+prova('Comando a distanza', 'una decisione di questo tablet non ancora consegnata non viene scavalcata',
+  (() => {
+    pres.disarmSentinel();
+    const r = pres.applyRemoteDecision({ armed: true, at: 1, from: 'telefono', serverAt: 99999999999999 });
+    pres.adoptServerStamp(Object.assign({}, pres.lastDecision(), { serverAt: 1000 }));
+    return r === false && pres.isArmed() === false;
+  })());
+
+const armatoDaFuori = pres.applyRemoteDecision({ armed: true, at: 5, from: 'telefono', serverAt: 2000 });
 prova('Comando a distanza', 'il telefono puo armare la sentinella',
   armatoDaFuori === true && pres.isArmed() === true);
 
-const vecchiaScartata = pres.applyRemoteDecision(
-  { armed: false, at: Date.now() + 2, from: 'telefono', serverAt: 500 });
-prova('Comando a distanza', 'una decisione piu vecchia non annulla quella nuova',
+const vecchiaScartata = pres.applyRemoteDecision({ armed: false, at: 6, from: 'tablet', serverAt: 1500 });
+prova('Comando a distanza', 'l eco di una decisione piu vecchia non annulla quella nuova',
   vecchiaScartata === false && pres.isArmed() === true);
 
-const disarmatoDaFuori = pres.applyRemoteDecision(
-  { armed: false, at: Date.now() + 3, from: 'telefono', serverAt: 2000 });
+const disarmatoDaFuori = pres.applyRemoteDecision({ armed: false, at: 7, from: 'telefono', serverAt: 3000 });
 prova('Comando a distanza', 'il telefono puo anche disarmarla',
   disarmatoDaFuori === true && pres.isArmed() === false);
 
-const ripetizione = pres.applyRemoteDecision(pres.lastDecision());
 prova('Comando a distanza', 'la nostra stessa decisione di ritorno non fa nulla',
-  ripetizione === false);
+  pres.applyRemoteDecision(pres.lastDecision()) === false);
+
+prova('Comando a distanza', 'una decisione senza marcatura del servizio viene ignorata',
+  pres.applyRemoteDecision({ armed: true, at: 8, from: 'chiunque' }) === false && pres.isArmed() === false);
+
+// Spegnere la fotocamera non deve disarmare di nascosto.
+pres.armSentinel();
+pres.stopPresence();
+prova('Sentinella', 'spegnere la fotocamera non disarma la sentinella',
+  pres.isArmed() === true && localStorage.getItem('domapp.sentinel.armed.v1') !== null);
+pres.disarmSentinel();
+
+// ---------- 24b. allineamento senza rimbalzi ----------
+
+const oggi = Date.now();
+localStorage.setItem('domapp.reminders.v1', JSON.stringify([
+  { id: 'rA', text: 'uno', editedAt: oggi, when: 1 }
+]));
+const remotoConCancellazione = [
+  { id: 'rA', text: 'uno', editedAt: oggi, when: 1 },
+  { id: 'rB', text: 'cancellato altrove', editedAt: oggi + 10, deleted: true }
+];
+const primaVolta = syncMod.mergeList('domapp.reminders.v1', remotoConCancellazione, null);
+const secondaVolta = syncMod.mergeList('domapp.reminders.v1', remotoConCancellazione, null);
+prova('Allineamento', 'una cancellazione fatta altrove non conta come modifica visibile', primaVolta === false);
+prova('Allineamento', 'la stessa cancellazione ricevuta di nuovo non fa ripartire niente', secondaVolta === false,
+  'questo era il rimbalzo ogni trenta secondi');
+prova('Allineamento', 'la cancellazione resta conservata, cosi la voce non ricompare',
+  JSON.parse(localStorage.getItem('domapp.reminders.v1')).some(r => r.id === 'rB' && r.deleted));
+prova('Allineamento', 'una modifica vera invece si vede',
+  syncMod.mergeList('domapp.reminders.v1', [{ id: 'rA', text: 'uno cambiato', editedAt: oggi + 20, when: 1 }], null) === true);
+localStorage.removeItem('domapp.reminders.v1');
+
+prova('Allineamento', 'le scelte proprie di ogni schermo non viaggiano',
+  syncMod.LOCAL_ONLY.uiScale && syncMod.LOCAL_ONLY.wallpaper && syncMod.LOCAL_ONLY.deviceRole && syncMod.LOCAL_ONLY.syncToken);
+
+// ---------- 24c. promemoria e sveglia ----------
+
+const rem2 = await import('/js/reminders.js');
+const sera = rem2.parseWhen('ricordami di chiamare alle 9 di sera', new Date(2026, 8, 26, 10, 0));
+prova('Promemoria', 'alle nove di sera sono le 21, non le 9 del mattino', sera.when && sera.when.getHours() === 21);
 
 // ---------- 25. stanze e dispositivi modificabili ----------
 
@@ -467,8 +526,8 @@ prova('Stanze', 'si puo tornare alla disposizione di esempio',
 
 const wid = await import('/js/widgets.js');
 cfg.settings.homeWidgets = '';
-prova('Riquadri', 'di fabbrica ci sono meteo, timer, promemoria e spesa',
-  wid.chosenWidgets().join(',') === 'meteo,timer,promemoria,spesa');
+prova('Riquadri', 'di fabbrica ci sono meteo, timer, messaggi, promemoria e spesa',
+  wid.chosenWidgets().join(',') === 'meteo,timer,messaggi,promemoria,spesa');
 
 wid.setChosenWidgets(['sentinella', 'meteo']);
 wid.renderWidgets();
@@ -480,7 +539,9 @@ prova('Riquadri', 'i riquadri scelti compaiono nell ordine scelto',
 prova('Riquadri', 'il meteo tolto dalla schermata resta nella pagina, cosi l aggiornamento non si rompe',
   (() => { wid.setChosenWidgets(['sentinella']); wid.renderWidgets();
            return !!document.getElementById('weather-temp'); })());
+// Il collaudo non deve lasciare le sue scelte al posto di quelle vere.
 cfg.settings.homeWidgets = '';
+cfg.save();
 wid.renderWidgets();
 
 // ---------- 27. foto dal tablet ----------
@@ -506,6 +567,13 @@ prova('Foto', 'si possono togliere', (await gal.list('photo')).every(x => x.id !
 const voce = await import('/js/voice.js');
 prova('Voce', 'la diagnostica dice se manca la voce italiana', voce.speechStatus().indexOf('Risposta parlata') === 0,
   voce.speechStatus());
+
+// ---------- pulizia finale ----------
+// I dati inventati dal collaudo non devono restare sul pannello.
+['domapp.reminders.v1', 'domapp.shopping.v1', 'domapp.timers.v1', 'domapp.alarms.v1',
+ 'domapp.intercom.queue.v1', 'domapp.intercom.inbox.v1', 'domapp.cameras.v1',
+ 'domapp.doorbell.v1', 'domapp.reminders.notified.v1'].forEach(k => localStorage.removeItem(k));
+await sent.clearAll();
 
 // ---------- esito ----------
 return {

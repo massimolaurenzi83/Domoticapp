@@ -8,16 +8,16 @@
 // Il passaggio di una persona porta alla stazione meteo, il tocco porta
 // ai controlli, e dopo il tempo di risveglio si torna allo stato di riposo.
 
-import { settings, isDaytime, isSleepHours } from './config.js';
+import { settings, save as saveSettings, isDaytime, isSleepHours, effectiveRole } from './config.js';
 import { initScreen, applyScheduledBrightness, screenDiagnostics } from './screen.js';
-import { startPresence, stopPresence, presenceDiagnostics, armSentinel, disarmSentinel, isArmed, armedSince } from './presence.js';
+import { startPresence, stopPresence, presenceDiagnostics, armSentinel, disarmSentinel, isArmed, armedSince, cameraLive, cameraStatus } from './presence.js';
 import { fetchWeather, weatherDiagnostics } from './weather.js';
 import { loadPhotos, nextPhoto, photoCount } from './photos.js';
 import { buildSettings, renderTab, timeString, dateString, agendaHooks, currentProfile, homeHooks } from './ui.js';
 import { parseWhen, addReminder, describeWhen } from './reminders.js';
 import { pinOk, pinRequired } from './profiles.js';
 import { securityHooks } from './security-view.js';
-import { setupDone, startSetup, resetSetup } from './setup.js';
+import { setupDone, startSetup, resetSetup, markSetupDone } from './setup.js';
 import { renderWidgets } from './widgets.js';
 import { openHomeEditor } from './home-editor.js';
 import { reloadLayout } from './devices.js';
@@ -26,14 +26,16 @@ import { startBackups, saveLocalCopy, pushToService, downloadFile, readFile,
 import { bridgeDiagnostics, checkBridge } from './bridge.js';
 import { startSimulation, stopSimulation, simulationDiagnostics, noteHabit, simulationRunning } from './presence-sim.js';
 import { startAlarms, alarmDiagnostics } from './alarm-clock.js';
-import { watchTimers, activeTimers, remainingText, addTimer, spokenDuration } from './timers.js';
+import { watchTimers, activeTimers, remainingText, addTimer, spokenDuration, removeTimer } from './timers.js';
+import { loadReminders } from './reminders.js';
+import { autoRestoreIfNeeded } from './backup.js';
 import { registerWorker, enableNotifications, notificationsActive, pushBlockedReason, isIOS, isStandalone } from './push.js';
 import { micOn, camOn, setMic, setCam, silenceAll, onPrivacyChange, privacySummary } from './privacy.js';
 import { setSyncConfig, startSync, syncConfigured, syncStatus, touch } from './sync.js';
 import { setIntercomHandler } from './intercom.js';
 import { commandLog, onToggle } from './devices.js';
 import { loadWallpapers, applyWallpaper } from './wallpaper.js';
-import { startVoice, stopVoice, say, voiceAvailable, voiceDiagnostics, captureNext, primeSpeech, speechStatus } from './voice.js';
+import { startVoice, stopVoice, say, voiceAvailable, voiceDiagnostics, captureNext, primeSpeech, speechStatus, voiceListening } from './voice.js';
 import { runCommand } from './intents.js';
 
 var screens = {
@@ -62,8 +64,33 @@ function idleScreen(){
 
 function isAwake(){ return Date.now() < awakeUntil; }
 
+// Ultimo tocco sullo schermo, o ultimo comando a voce. E il solo segnale
+// che tiene aperta la plancia: la fotocamera che vede qualcuno davanti al
+// tablet la teneva aperta per sempre, anche senza che nessuno la usasse.
+var lastTouchAt = Date.now();
+
+function markTouch(){ lastTouchAt = Date.now(); }
+
+// Con una finestra aperta, impostazioni, modifica delle stanze o
+// configurazione guidata, non si torna a riposo: si perderebbe il lavoro.
+function sheetOpen(){
+  if (settingsOpen) return true;
+  var ids = ['home-editor', 'setup', 'bridge-conf', 'settings', 'privacy'];
+  for (var i = 0; i < ids.length; i++) {
+    var el = document.getElementById(ids[i]);
+    if (el && !el.hidden) return true;
+  }
+  return false;
+}
+
+function controlExpired(){
+  var limite = Math.max(15, parseInt(settings.controlIdleSeconds, 10) || 60) * 1000;
+  return Date.now() - lastTouchAt > limite;
+}
+
 function wake(toControl){
   awakeUntil = Date.now() + settings.wakeSeconds * 1000;
+  if (toControl) markTouch();
   show(toControl ? 'control' : 'ambient');
 }
 
@@ -110,8 +137,12 @@ function tick(){
   applyScheduledBrightness(isAwake() || settingsOpen);
   paintTimers();
 
-  if (!isAwake() && !settingsOpen && currentScreen === 'control') show(idleScreen());
-  if (!isAwake() && !settingsOpen) {
+  // La plancia torna a riposo dopo il tempo scelto senza tocchi.
+  if (currentScreen === 'control' && !sheetOpen() && controlExpired()) {
+    awakeUntil = 0;
+    show(isSleepHours() ? 'ambient' : idleScreen());
+  }
+  if (currentScreen !== 'control' && !isAwake() && !sheetOpen()) {
     var want = isSleepHours() ? 'ambient' : idleScreen();
     if (currentScreen !== want) show(want);
   }
@@ -159,6 +190,9 @@ function openSettings(){
     if (id === 'syncUrl' || id === 'syncToken') setSyncConfig(settings.syncUrl, settings.syncToken);
     if (id === 'photoSeconds') { stopPhotoLoop(); if (currentScreen === 'photos') startPhotoLoop(); }
     if (id === 'homeWidgets') renderWidgets();
+    if (id === 'uiScale') applyScale();
+    if (id === 'privacyMicOff' || id === 'privacyCamOff' || id === 'presenceEnabled' ||
+        id === 'voiceEnabled' || id === 'deviceRole') applyPrivacy();
     if (id === 'photos') loadPhotos().then(function(){ if (!isAwake()) show(idleScreen()); });
     if (id === 'lat' || id === 'lon' || id === 'placeName') refreshWeather();
     if (id === 'voiceEnabled') { stopVoice(); setupVoice(); }
@@ -181,6 +215,8 @@ function updateDiagnostics(){
     speechStatus(),
     batteryStatus(),
     weatherDiagnostics() + (lastWeatherError ? ' | ultimo errore: ' + lastWeatherError : ''),
+    'Allarmi: ' + (lastAlarmResult || 'nessuno inviato finora'),
+    'Ruolo: ' + (effectiveRole() === 'pannello' ? 'pannello di casa' : 'telefono per fuori casa'),
     bridgeDiagnostics(),
     backupDiagnostics(),
     simulationDiagnostics(),
@@ -216,17 +252,37 @@ function boot(){
     })(tabs[i]);
   }
 
-  agendaHooks.onDictate = function(){ captureNext(); };
+  agendaHooks.onDictate = function(){
+    if (!captureNext()) {
+      showVoiceBar('', voiceListening() ? 'Un attimo, riprova.' :
+        'Il microfono non sta ascoltando. Tocca lo schermo, oppure controlla il tasto del microfono in alto.');
+    }
+  };
 
   setIntercomHandler(function(list){
     var last = list[list.length - 1];
     bumpAwake();
     show('ambient');
-    showVoiceBar('Messaggio da ' + last.from, last.text);
+    beep(1);
+    showVoiceBar('Messaggio da ' + last.from, last.text, 60000);
+    renderWidgets();
   });
 
   securityHooks.isArmed = isArmed;
-  securityHooks.onArm = function(){ armSentinel(); startSimulation(); bumpAwake(); };
+  securityHooks.onArm = function(){
+    armSentinel();
+    bumpAwake();
+    if (effectiveRole() !== 'pannello') {
+      showVoiceBar('Sentinella', syncConfigured()
+        ? 'Comando inviato: i pannelli di casa cominciano a sorvegliare entro mezzo minuto.'
+        : 'Questo telefono non e collegato ai pannelli di casa: il comando non arrivera.');
+      return;
+    }
+    startSimulation();
+    if (!cameraLive()) {
+      showVoiceBar('Attenzione', 'Sentinella armata, ma la fotocamera di questo tablet non sta riprendendo: ' + cameraStatus() + '.');
+    }
+  };
   securityHooks.onDisarm = function(){ disarmSentinel(); stopSimulation(); bumpAwake(); };
 
   document.getElementById('btn-close-bridge').addEventListener('click', function(){
@@ -240,6 +296,7 @@ function boot(){
 
   setupPrivacyPanel();
   onPrivacyChange(applyPrivacy);
+  setupBackButtons();
 
   document.getElementById('btn-settings').addEventListener('click', function(){
     if (!pinRequired()) { openSettings(); return; }
@@ -277,9 +334,15 @@ function boot(){
     document.getElementById('doorbell').hidden = true;
   });
 
+  // Qualunque tocco conta, comprese caselle, schede e scorrimento.
+  document.addEventListener('touchstart', markTouch, true);
+  document.addEventListener('click', markTouch, true);
+  document.addEventListener('keydown', markTouch, true);
+  document.addEventListener('input', markTouch, true);
+
   document.addEventListener('click', function(ev){
-    if (settingsOpen) return;
-    if (ev.target.closest && ev.target.closest('.tile')) return;
+    if (sheetOpen()) return;
+    if (currentScreen === 'control') return;
     wake(true);
   });
 
@@ -287,8 +350,7 @@ function boot(){
     startSetup(function(){
       refreshWeather();
       renderCurrentTab();
-      setupVoice();
-      if (settings.presenceEnabled) startCamera();
+      applyPrivacy();
     });
   }
 
@@ -300,11 +362,11 @@ function boot(){
   tick();
   setInterval(tick, 1000);
 
-  if (settings.presenceEnabled) startCamera();
-  setupVoice();
-
+  // Fotocamera e voce le accende applyPrivacy, gia chiamata dal pannello
+  // della privacy: chiamarle anche qui apriva due flussi video.
   onToggle(noteHabit);
 
+  applyScale();
   unlockOnFirstTouch();
 
   // Modifica di stanze e dispositivi: protetta dal codice, come le impostazioni.
@@ -329,7 +391,7 @@ function boot(){
 
   // Se il tablet si e riavviato mentre la sentinella era armata, la
   // sorveglianza riprende da sola e lo schermo lo dice.
-  if (isArmed()) {
+  if (isArmed() && effectiveRole() === 'pannello') {
     startSimulation();
     var da = armedSince();
     var quando = da ? new Date(da).toLocaleString('it-IT') : 'prima del riavvio';
@@ -341,20 +403,35 @@ function boot(){
   registerWorker();
   checkBridge();
 
+  // La sveglia oggi suona sul tablet; luce e musica partiranno quando Google
+  // Home sara collegato.
+  var lastAlarmRing = '';
   startAlarms(function(alarm, progress){
-    if (progress >= 1) { bumpAwake(); show('ambient'); }
+    if (progress < 1) return;
+    var chiave = new Date().toDateString() + alarm.id;
+    if (chiave === lastAlarmRing) return;
+    lastAlarmRing = chiave;
+    bumpAwake();
+    show('ambient');
+    beep(6);
+    if (settings.voiceReply) say('Buongiorno. Sono le ' + alarm.time.replace(':', ' e ') + '.');
   });
 
   watchTimers(paintTimers, function(t){
     bumpAwake();
     show('ambient');
+    beep(4);
     var what = t.name ? 'Il timer ' + t.name : 'Il timer';
     showVoiceBar('', what + ' e finito.');
     if (settings.voiceReply) say(what + ' e finito.');
   });
 
+  checkDueReminders(true);
+  setInterval(function(){ checkDueReminders(false); }, 20000);
+
   setSyncConfig(settings.syncUrl, settings.syncToken);
   startSync(function(){
+    applyPrivacy();
     reloadLayout();
     renderCurrentTab();
     applyWallpaper();
@@ -363,7 +440,7 @@ function boot(){
 
     // La sentinella puo essere stata armata dal telefono: qui il pannello
     // se ne accorge e si adegua.
-    if (isArmed() && !simulationRunning()) startSimulation();
+    if (effectiveRole() === 'pannello' && isArmed() && !simulationRunning()) startSimulation();
     if (!isArmed() && simulationRunning()) stopSimulation();
   });
 }
@@ -380,12 +457,21 @@ function micHint(text){
     el = document.createElement('div');
     el.id = 'mic-hint';
     // In basso a destra: in alto coprirebbe i tasti della plancia.
-    el.style.cssText = 'position:absolute;bottom:14px;right:16px;z-index:18;font-size:13px;' +
-      'color:#9aa0a8;background:#14171b;padding:6px 12px;border-radius:999px;pointer-events:none;';
+    el.style.cssText = 'position:absolute;bottom:14px;right:16px;z-index:18;font-size:17px;' +
+      'color:#f0b429;background:#2a220c;padding:9px 16px;border-radius:999px;pointer-events:none;';
     document.body.appendChild(el);
   }
   el.textContent = text;
   el.hidden = !text;
+}
+
+// Ingrandisce tutto il pannello, testi e icone insieme. In automatico
+// ingrandisce sugli schermi da tablet, che si guardano da lontano, e lascia
+// normale sui telefoni, che si tengono in mano.
+function applyScale(){
+  var v = parseFloat(settings.uiScale);
+  if (!v) v = window.innerWidth >= 1000 ? 1.25 : 1;
+  document.body.style.zoom = String(v);
 }
 
 // Al primo tocco dopo l apertura sblocca tutto cio che Chrome su Android
@@ -483,6 +569,7 @@ function setupVoice(){
       }
     },
     onCommand: function(rest, full, captured){
+      markTouch();
       awakeUntil = Date.now() + settings.wakeSeconds * 1000;
 
       if (captured) { saveDictated(rest); return; }
@@ -560,18 +647,55 @@ function setupBackupButtons(){
 
   document.getElementById('btn-backup-service').addEventListener('click', function(){
     esito.textContent = 'Cerco una copia sul servizio...';
-    pullFromService().then(function(copy){
-      if (!copy) { esito.textContent = 'Nessuna copia trovata sul servizio.'; return; }
+    pullFromService().then(function(res){
+      var copy = res.copy;
       var quando = new Date(copy.at).toLocaleString('it-IT');
-      if (!window.confirm('Ripristino la copia del ' + quando + ' presa dal servizio?')) {
+      var chi = res.from && res.from.label ? ' fatta da ' + res.from.label : '';
+      if (!window.confirm('Ripristino la copia del ' + quando + chi + '?')) {
         esito.textContent = 'Ripristino annullato.';
         return;
       }
       restore(copy);
       esito.textContent = 'Ripristinata. Ricarico...';
       setTimeout(function(){ location.reload(); }, 1200);
+    }, function(e){
+      esito.textContent = 'Ripristino non possibile: ' + e.message + '.';
     });
   });
+}
+
+// Con la sentinella armata, spegnere la fotocamera e proprio quello che
+// farebbe un intruso. Se c e un codice lo si chiede, e in ogni caso parte
+// un avviso verso il telefono.
+function allowCameraOffWhileArmed(){
+  if (!isArmed()) return true;
+  if (pinRequired()) {
+    var entered = window.prompt('La sentinella e armata. Codice per spegnere la fotocamera');
+    if (entered === null) return false;
+    if (!pinOk(entered)) { showVoiceBar('', 'Codice errato. La fotocamera resta accesa.'); return false; }
+  }
+  sendAlarm({ at: Date.now(), source: 'fotocamera spenta a mano con la sentinella armata', strength: 0, blob: null });
+  return true;
+}
+
+// Tasto Indietro in cima a ogni schermata. Dalla plancia riporta alla
+// schermata di riposo; da una finestra la chiude, come il suo tasto Chiudi.
+function setupBackButtons(){
+  document.addEventListener('click', function(ev){
+    var b = ev.target.closest ? ev.target.closest('[data-back]') : null;
+    if (!b) return;
+    ev.stopPropagation();
+    var dove = b.getAttribute('data-back');
+    if (dove === 'control') {
+      awakeUntil = 0;
+      show(isSleepHours() ? 'ambient' : idleScreen());
+      return;
+    }
+    if (dove === 'settings') { closeSettings(); return; }
+    if (dove === 'privacy') { document.getElementById('btn-close-privacy').click(); return; }
+    var el = document.getElementById(dove);
+    if (el) el.hidden = true;
+  }, true);
 }
 
 function setupPrivacyPanel(){
@@ -591,9 +715,11 @@ function setupPrivacyPanel(){
     setMic(!micOn()); paintSwitches();
   });
   document.getElementById('sw-cam').addEventListener('click', function(){
+    if (camOn() && !allowCameraOffWhileArmed()) return;
     setCam(!camOn()); paintSwitches();
   });
   document.getElementById('btn-silence').addEventListener('click', function(){
+    if (camOn() && !allowCameraOffWhileArmed()) return;
     silenceAll(); paintSwitches();
   });
 
@@ -606,11 +732,17 @@ function paintSwitches(){
 }
 
 // Accende o spegne davvero i sensori, e aggiorna la targhetta di stato.
+// Accende o spegne microfono e fotocamera secondo interruttori, impostazioni
+// e ruolo del dispositivo. Un telefono non ascolta e non riprende: serve a
+// comandare da fuori casa, e non deve mandare allarmi con la faccia di chi
+// lo tiene in mano.
 function applyPrivacy(){
-  if (micOn()) { if (settings.voiceEnabled) setupVoice(); }
-  else { stopVoice(); document.getElementById('mic-dot').hidden = true; }
+  var pannello = effectiveRole() === 'pannello';
 
-  if (camOn()) { if (settings.presenceEnabled) startCamera(); }
+  if (pannello && micOn() && settings.voiceEnabled) setupVoice();
+  else { stopVoice(); document.getElementById('mic-dot').hidden = true; micHint(''); }
+
+  if (pannello && camOn() && settings.presenceEnabled) startCamera();
   else stopPresence();
 
   var flag = document.getElementById('priv-flag');
@@ -636,13 +768,13 @@ function saveDictated(phrase){
   if (settings.voiceReply) say(reply);
 }
 
-function showVoiceBar(heard, reply){
+function showVoiceBar(heard, reply, durata){
   var bar = document.getElementById('voice-bar');
   document.getElementById('vb-heard').textContent = heard ? '“' + heard + '”' : '';
   document.getElementById('vb-reply').textContent = reply;
   bar.hidden = false;
   if (voiceBarTimer) clearTimeout(voiceBarTimer);
-  voiceBarTimer = setTimeout(function(){ bar.hidden = true; }, 7000);
+  voiceBarTimer = setTimeout(function(){ bar.hidden = true; }, durata || 7000);
 }
 
 function selectTab(name){
@@ -665,29 +797,117 @@ function renderCurrentTab(){
 }
 
 // Mostra i timer in corso sulla schermata a riposo.
+// I timer si ridisegnano solo quando cambia l elenco; ogni secondo si
+// aggiorna solo il tempo che resta. Un tocco sulla riga annulla il timer.
+var paintedTimers = '';
+
 function paintTimers(){
   var box = document.getElementById('timer-box');
   var list = activeTimers();
-  if (!list.length) { box.hidden = true; box.innerHTML = ''; return; }
-
-  box.innerHTML = '';
-  for (var i = 0; i < list.length; i++) {
-    var row = document.createElement('div');
-    row.className = 'timer-row';
-
-    var left = document.createElement('div');
-    left.className = 'timer-left';
-    left.textContent = remainingText(list[i]);
-
-    var name = document.createElement('div');
-    name.className = 'timer-name';
-    name.textContent = list[i].name || 'timer';
-
-    row.appendChild(left);
-    row.appendChild(name);
-    box.appendChild(row);
+  if (!list.length) {
+    if (paintedTimers) { box.hidden = true; box.innerHTML = ''; paintedTimers = ''; }
+    return;
   }
-  box.hidden = false;
+
+  var chiave = list.map(function(t){ return t.id; }).join(',');
+  if (chiave !== paintedTimers) {
+    paintedTimers = chiave;
+    box.innerHTML = '';
+    list.forEach(function(t){
+      var row = document.createElement('div');
+      row.className = 'timer-row';
+      row.setAttribute('data-id', t.id);
+
+      var left = document.createElement('div');
+      left.className = 'timer-left';
+
+      var name = document.createElement('div');
+      name.className = 'timer-name';
+      name.textContent = (t.name || 'timer') + ', tocca per annullare';
+
+      row.appendChild(left);
+      row.appendChild(name);
+      row.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        removeTimer(t.id);
+        paintTimers();
+      });
+      box.appendChild(row);
+    });
+    box.hidden = false;
+  }
+
+  var righe = box.getElementsByClassName('timer-row');
+  for (var i = 0; i < righe.length; i++) {
+    var t = list.filter(function(x){ return x.id === righe[i].getAttribute('data-id'); })[0];
+    if (t) righe[i].firstChild.textContent = remainingText(t);
+  }
+}
+
+// Un suono breve generato dal tablet, per timer, sveglia e promemoria.
+// Non serve nessun file audio, e dopo il primo tocco Chrome lo permette.
+var audioCtx = null;
+
+function beep(times){
+  try {
+    if (!audioCtx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      audioCtx = new AC();
+    }
+    if (audioCtx.resume) audioCtx.resume();
+    var n = times || 3;
+    for (var i = 0; i < n; i++) {
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.frequency.value = 880;
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      var t0 = audioCtx.currentTime + i * 0.45;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.4, t0 + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3);
+      o.start(t0);
+      o.stop(t0 + 0.32);
+    }
+  } catch (e) {}
+}
+
+// ---------- promemoria all ora giusta ----------
+//
+// Quando arriva l ora di un promemoria il pannello suona e lo dice. Quelli
+// scaduti mentre il tablet era spento vengono segnati come gia visti, per
+// non ricevere una raffica di avvisi vecchi all accensione.
+
+var NOTIFIED_KEY = 'domapp.reminders.notified.v1';
+
+function notifiedIds(){
+  try { return JSON.parse(localStorage.getItem(NOTIFIED_KEY) || '[]'); } catch (e) { return []; }
+}
+
+function checkDueReminders(firstRun){
+  var gia = notifiedIds();
+  var ora = Date.now();
+  var dovuti = loadReminders().filter(function(r){
+    return r.when && r.when <= ora && gia.indexOf(r.id) === -1;
+  });
+  if (!dovuti.length) return;
+
+  var nuovi = [];
+  dovuti.forEach(function(r){
+    gia.push(r.id);
+    if (!firstRun && ora - r.when < 10 * 60000) nuovi.push(r);
+  });
+  if (gia.length > 300) gia = gia.slice(gia.length - 300);
+  try { localStorage.setItem(NOTIFIED_KEY, JSON.stringify(gia)); } catch (e) {}
+
+  if (!nuovi.length || effectiveRole() !== 'pannello') return;
+  var r = nuovi[nuovi.length - 1];
+  bumpAwake();
+  show('ambient');
+  beep(2);
+  showVoiceBar('Promemoria', r.text);
+  if (settings.voiceReply) say('Promemoria: ' + r.text);
 }
 
 function bumpAwake(){ awakeUntil = Date.now() + settings.wakeSeconds * 1000; }
@@ -696,25 +916,32 @@ function startCamera(){
   return startPresence({ onMotion: onPresence, onAlarm: onAlarm });
 }
 
-// Per ora l allarme resta sul tablet. Quando il servizio sara pubblicato,
-// da qui partira anche la notifica verso il telefono.
 // Manda fuori l allarme con una miniatura. Le immagini piene restano nel
 // tablet: parte solo questa, cosi resta qualcosa anche se il tablet sparisce.
+var lastAlarmResult = '';
+
 function onAlarm(info){
   updateDiagnostics();
-  if (!settings.syncUrl) return;
+  sendAlarm(info);
+}
 
+function sendAlarm(info){
+  if (!settings.syncUrl || !settings.syncToken) {
+    lastAlarmResult = 'servizio non configurato: l allarme resta solo su questo tablet';
+    return;
+  }
   thumbFrom(info.blob).then(function(thumb){
-    fetch(String(settings.syncUrl).replace(/\/+$/, '') + '/alarm', {
+    return fetch(String(settings.syncUrl).replace(/\/+$/, '') + '/alarm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Casa-Token': settings.syncToken },
-      body: JSON.stringify({
-        at: info.at,
-        source: 'tablet',
-        strength: info.strength,
-        thumb: thumb
-      })
-    }).catch(function(){});
+      body: JSON.stringify({ at: info.at, source: info.source || 'tablet', strength: info.strength, thumb: thumb })
+    });
+  }).then(function(r){
+    lastAlarmResult = r.ok
+      ? 'ultimo allarme consegnato alle ' + new Date().toLocaleTimeString('it-IT')
+      : 'ultimo allarme rifiutato dal servizio, stato ' + r.status;
+  }).catch(function(){
+    lastAlarmResult = 'ultimo allarme non consegnato: servizio non raggiungibile';
   });
 }
 
@@ -738,10 +965,48 @@ function thumbFrom(blob){
   });
 }
 
+// Chi passa davanti al tablet sveglia la schermata con ora e meteo, ma non
+// tiene aperta la plancia: quella si chiude dopo un minuto senza tocchi.
 function onPresence(){
-  if (settingsOpen) return;
+  if (sheetOpen()) return;
   if (currentScreen !== 'control') wake(false);
-  else awakeUntil = Date.now() + settings.wakeSeconds * 1000;
 }
 
-boot();
+// Un link dell installazione porta indirizzo e parola del servizio dopo il
+// simbolo #, parte che non viene mai spedita ai server di GitHub. Aperto su
+// un dispositivo, lo collega in un tocco.
+var linkedNow = false;
+
+function acceptLink(){
+  var m = (window.location.hash || '').match(/#collega=([^&]+)/);
+  if (!m) return;
+  var parti = decodeURIComponent(m[1]).split('|');
+  // Si ripulisce subito l indirizzo, cosi il link non resta nella cronologia.
+  try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) {}
+  if (parti.length !== 2 || !/^https:\/\/[a-z0-9.-]+\.workers\.dev$/i.test(parti[0])) {
+    window.alert('Questo link non sembra quello del servizio di casa.');
+    return;
+  }
+  var host = parti[0].replace('https://', '');
+  if (!window.confirm('Collegare questo dispositivo al servizio di casa ' + host + '?')) return;
+  settings.syncUrl = parti[0];
+  settings.syncToken = parti[1];
+  saveSettings();
+  // Un dispositivo nuovo collegato col link non ha bisogno della
+  // configurazione guidata: il resto arriva dal servizio.
+  if (!setupDone()) markSetupDone();
+  linkedNow = true;
+}
+
+function start(){
+  acceptLink();
+  // Se Android ha svuotato la memoria, si rimette tutto a posto e si
+  // ricarica, prima che il pannello parta con i valori di fabbrica.
+  autoRestoreIfNeeded().then(function(at){
+    if (at) { window.location.reload(); return; }
+    boot();
+    if (linkedNow) showVoiceBar('Collegato', 'Questo dispositivo ora fa parte della casa.');
+  }, function(){ boot(); });
+}
+
+start();

@@ -35,13 +35,17 @@ function markSeen(ids){
 // cosi funziona anche se in quel momento la rete non c e.
 export function sendMessage(text, fromName){
   var queue = readQueue();
+  var id = 'ms' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+  // Chi scrive il messaggio non deve sentirselo leggere ad alta voce.
+  markSeen([id]);
   queue.push({
-    id: 'ms' + Date.now() + '-' + Math.floor(Math.random() * 10000),
+    id: id,
     text: String(text || '').trim(),
     from: fromName || settings.profile1Name || 'Casa',
     at: Date.now()
   });
   writeQueue(queue);
+  try { window.dispatchEvent(new Event('casa-dati')); } catch (e) {}
   return queue;
 }
 

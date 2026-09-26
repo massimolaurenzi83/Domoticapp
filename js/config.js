@@ -23,6 +23,14 @@ export var SCHEMA = [
   { id:'photoSeconds', type:'num', def:25, min:5, max:600, group:'Cornice',
     label:'Secondi per foto', hint:'Quanto resta a schermo ogni immagine' },
 
+  { id:'deviceRole', type:'choice', def:'', group:'Questo dispositivo',
+    label:'Uso di questo dispositivo',
+    hint:'Il pannello usa fotocamera, voce e sentinella. Il telefono serve solo a comandare da fuori casa',
+    options: { '': 'Automatico', 'pannello': 'Pannello di casa', 'telecomando': 'Telefono per fuori casa' } },
+  { id:'uiScale', type:'choice', def:'', group:'Schermo',
+    label:'Dimensione di testi e icone',
+    hint:'Automatica ingrandisce sui tablet, cosi si legge anche da lontano',
+    options: { '': 'Automatica', '0.9': 'Piccola', '1': 'Normale', '1.25': 'Grande', '1.5': 'Molto grande' } },
   { id:'wallpaper', type:'wallpaper', def:'', group:'Schermo',
     label:'Sfondo',
     hint:'Immagini dalla cartella wallpapers del progetto' },
@@ -48,6 +56,9 @@ export var SCHEMA = [
   { id:'presenceSensitivity', type:'num', def:14, min:2, max:60, group:'Presenza',
     label:'Sensibilita presenza',
     hint:'Piu basso, piu sensibile. Alza il valore se si sveglia da sola' },
+  { id:'controlIdleSeconds', type:'num', def:60, min:15, max:900, group:'Schermo',
+    label:'Ritorno alla schermata di riposo',
+    hint:'Secondi senza toccare lo schermo prima di tornare a foto, ora e meteo' },
   { id:'wakeSeconds', type:'num', def:45, min:5, max:600, group:'Presenza',
     label:'Secondi di risveglio',
     hint:'Quanto resta sveglia dopo aver visto qualcuno' },
@@ -81,9 +92,6 @@ export var SCHEMA = [
     label:'Indirizzo del ponte di casa',
     hint:'Serve solo per Broadlink, presa D-Link e telecamere fisse. Lascialo vuoto finche non avrai un piccolo computer sempre acceso' },
 
-  { id:'tuyaConfigured', type:'bool', def:false, group:'Luci e citofono',
-    label:'Luci collegate',
-    hint:'Si accende da solo quando le chiavi sono state affidate al servizio. Le chiavi non vengono mai salvate sul tablet' },
 
   { id:'syncUrl', type:'text', def:'', group:'Sincronizzazione',
     label:'Indirizzo del servizio',
@@ -173,4 +181,13 @@ export function isDaytime(now){
 
 export function isSleepHours(now){
   return inWindow(settings.sleepStart, settings.sleepEnd, now);
+}
+
+// Ruolo effettivo di questo dispositivo. In automatico, uno schermo largo
+// da tablet fa da pannello e uno stretto da telefono fa da telecomando: un
+// telefono non deve accendere la fotocamera ne mandare allarmi con la
+// faccia di chi lo tiene in mano.
+export function effectiveRole(){
+  if (settings.deviceRole === 'pannello' || settings.deviceRole === 'telecomando') return settings.deviceRole;
+  return window.innerWidth >= 1000 ? 'pannello' : 'telecomando';
 }

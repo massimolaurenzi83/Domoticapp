@@ -54,6 +54,7 @@
 
   <section class="screen" id="screen-control">
     <header class="control-head">
+      <button class="btn-back" type="button" data-back="control">&#8592; Indietro</button>
       <div class="control-clock" id="control-clock">--:--</div>
       <nav class="tabs" id="tabs">
         <button class="tab is-active" data-tab="casa" type="button">Casa</button>
@@ -75,6 +76,7 @@
 
 <div id="settings" class="sheet" hidden>
   <div class="sheet-inner">
+    <button class="btn-back" type="button" data-back="settings">&#8592; Indietro</button>
     <h2>Impostazioni</h2>
     <div class="set-grid" id="set-grid"></div>
     <div class="set-hint" style="margin-top:22px;font-size:12px;letter-spacing:1px;text-transform:uppercase;">Copia di sicurezza</div>
@@ -99,7 +101,7 @@
   </div>
 </div>
 
-<div id="mic-dot" hidden><span></span></div>
+<div id="mic-dot" hidden><span class="mic-pulse"></span><span class="mic-label">In ascolto</span></div>
 
 <div id="voice-bar" hidden>
   <div class="vb-inner">
@@ -114,6 +116,7 @@
 
 <div id="privacy" class="sheet" hidden>
   <div class="sheet-inner" style="width:520px;">
+    <button class="btn-back" type="button" data-back="privacy">&#8592; Indietro</button>
     <h2>Microfono e fotocamera</h2>
     <div class="set-grid">
       <div class="set-row">
@@ -140,6 +143,7 @@
 
 <div id="bridge-conf" class="sheet" hidden>
   <div class="sheet-inner">
+    <button class="btn-back" type="button" data-back="bridge-conf">&#8592; Indietro</button>
     <h2>File di configurazione per il ponte</h2>
     <p class="set-hint">Copialo in go2rtc.yaml sul Raspberry Pi accanto all eseguibile, poi riavvia il servizio. Le password compaiono solo qui e non restano sul tablet.</p>
     <textarea id="bridge-text" readonly rows="14"></textarea>

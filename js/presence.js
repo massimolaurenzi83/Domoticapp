@@ -42,6 +42,10 @@ var burstUntil = 0;
 var currentEvent = null;
 var lastReading = null;
 var status = 'non avviato';
+var starting = null;
+var eventStart = 0;
+var lastBurstShot = 0;
+var shotsSincePrune = 0;
 
 export function startPresence(callbacks){
   var cb = callbacks || {};
@@ -55,8 +59,11 @@ export function startPresence(callbacks){
   }
   if (!window.isSecureContext) { status = 'serve HTTPS per la fotocamera'; return Promise.resolve(false); }
   if (stream) return Promise.resolve(true);
+  // Due richieste ravvicinate aprivano due flussi e due cicli, e spegnendo
+  // la fotocamera se ne fermava uno solo. Ora la seconda aspetta la prima.
+  if (starting) return starting;
 
-  return navigator.mediaDevices.getUserMedia({
+  starting = navigator.mediaDevices.getUserMedia({
     video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
     audio: false
   }).then(function(s){
@@ -83,8 +90,17 @@ export function startPresence(callbacks){
   }).catch(function(err){
     status = 'permesso negato o fotocamera occupata: ' + (err && err.name ? err.name : 'errore');
     return false;
+  }).then(function(ok){
+    starting = null;
+    return ok;
   });
+  return starting;
 }
+
+// Vero quando la fotocamera sta davvero riprendendo.
+export function cameraLive(){ return !!(stream && timer); }
+
+export function cameraStatus(){ return status; }
 
 export function stopPresence(){
   if (timer) { clearInterval(timer); timer = null; }
@@ -94,8 +110,9 @@ export function stopPresence(){
     stream = null;
   }
   previous = null;
-  armed = false;
-  status = 'ferma';
+  // Spegnere la fotocamera non disarma la sentinella: prima la disarmava
+  // solo in memoria, mentre telefono e disco la davano ancora armata.
+  status = armed ? 'sentinella armata ma fotocamera spenta' : 'ferma';
 }
 
 // ---------- sentinella ----------
@@ -118,49 +135,61 @@ export function armSentinel(origine){
 // quella che arriva dall altro dispositivo.
 var DECISION_KEY = 'domapp.sentinel.decision.v1';
 
-function writeDecision(value, from, serverAt){
-  try {
-    localStorage.setItem(DECISION_KEY, JSON.stringify({
-      armed: !!value,
-      at: Date.now(),
-      from: from || 'locale',
-      serverAt: serverAt || null
-    }));
-  } catch (e) {}
+// Una decisione presa qui nasce senza marcatura del servizio. La riceve
+// quando il servizio la registra, e da quel momento il confronto con le
+// decisioni degli altri dispositivi usa solo quella marcatura: gli orologi
+// di tablet e telefoni si sfasano, quello del servizio e uno solo.
+function writeDecision(value, from){
+  storeDecision({ armed: !!value, at: Date.now(), from: from || 'locale', serverAt: null });
+}
+
+function storeDecision(d){
+  try { localStorage.setItem(DECISION_KEY, JSON.stringify(d)); } catch (e) {}
+  // Avvisa l allineamento che c e qualcosa da consegnare.
+  try { window.dispatchEvent(new Event('casa-dati')); } catch (e) {}
 }
 
 export function lastDecision(){
   try { return JSON.parse(localStorage.getItem(DECISION_KEY) || 'null'); } catch (e) { return null; }
 }
 
-// Applica una decisione arrivata dall altro dispositivo, ma solo se e piu
-// recente della nostra. Restituisce true se qualcosa e cambiato.
+// Il servizio ha registrato la nostra decisione e ci restituisce la sua
+// marcatura: la conserviamo, se si tratta proprio di quella decisione.
+export function adoptServerStamp(remote){
+  var mine = lastDecision();
+  if (!remote || !mine || !remote.serverAt) return;
+  if (mine.at === remote.at && mine.armed === remote.armed && !mine.serverAt) {
+    mine.serverAt = remote.serverAt;
+    try { localStorage.setItem(DECISION_KEY, JSON.stringify(mine)); } catch (e) {}
+  }
+}
+
+// Applica una decisione arrivata dal servizio. Restituisce vero se lo
+// stato della sentinella e cambiato.
 export function applyRemoteDecision(remote){
-  if (!remote || typeof remote.armed !== 'boolean') return false;
+  if (!remote || typeof remote.armed !== 'boolean' || !remote.serverAt) return false;
 
   var mine = lastDecision();
 
-  // Se la decisione che arriva e la nostra stessa, tornata indietro dal
-  // servizio, non c e niente da fare.
-  if (mine && mine.at === remote.at && mine.armed === remote.armed) return false;
+  // Una nostra decisione non ancora consegnata vince: e la piu recente, e
+  // sta per partire.
+  if (mine && !mine.serverAt) return false;
+  if (mine && mine.serverAt >= remote.serverAt) return false;
 
-  // Quando il servizio ha timbrato entrambe, il confronto usa il suo
-  // orologio. Altrimenti ripiega su quello dei dispositivi.
-  if (mine && mine.serverAt && remote.serverAt) {
-    if (mine.serverAt >= remote.serverAt) return false;
-  } else if (mine && (mine.at || 0) > (remote.at || 0)) {
-    return false;
+  var cambiato = false;
+  if (!!remote.armed !== armed) {
+    if (remote.armed) armSentinel('remoto');
+    else disarmSentinel('remoto');
+    cambiato = true;
   }
-  if (!!remote.armed === armed) {
-    // Stessa posizione, ma la marcatura del servizio va conservata.
-    writeDecision(remote.armed, remote.from || 'remoto', remote.serverAt);
-    return false;
-  }
-
-  if (remote.armed) armSentinel('remoto');
-  else disarmSentinel('remoto');
-  writeDecision(remote.armed, remote.from || 'remoto', remote.serverAt);
-  return true;
+  // Si conserva la decisione esattamente com e arrivata, cosi quando
+  // torna indietro viene riconosciuta come la stessa.
+  try {
+    localStorage.setItem(DECISION_KEY, JSON.stringify({
+      armed: !!remote.armed, at: remote.at, from: remote.from || 'remoto', serverAt: remote.serverAt
+    }));
+  } catch (e) {}
+  return cambiato;
 }
 
 export function armedSince(){
@@ -203,7 +232,14 @@ function sample(){
 
   previous = current;
 
-  if (armed && Date.now() < burstUntil) captureShot();
+  if (armed && Date.now() < burstUntil) {
+    // Una tenda mossa dal vento o un animale scatterebbero all infinito:
+    // dopo due minuti di movimento continuo si rallenta a uno scatto ogni
+    // dieci secondi, per non riempire la memoria.
+    var ora = Date.now();
+    var lungo = ora - eventStart > 120000;
+    if (!lungo || ora - lastBurstShot > 10000) { lastBurstShot = ora; captureShot(); }
+  }
 }
 
 // La sensibilita dell utente va da 2 a 60. Un valore basso deve rendere
@@ -225,6 +261,7 @@ function fireAlarm(reading){
   var isNew = !currentEvent || now > burstUntil + 15000;
 
   if (isNew) {
+    eventStart = now;
     currentEvent = 'ev' + now;
     pruneOld();
     pruneForSpace();
@@ -243,7 +280,10 @@ function captureShot(notify, strength){
   if (!shot.toBlob) return;
   shot.toBlob(function(blob){
     if (!blob) return;
-    saveShot(blob, ev, force);
+    saveShot(blob, ev, force).catch(function(){ pruneForSpace(); });
+    // Ogni tanto si controlla lo spazio anche durante un evento lungo.
+    shotsSincePrune++;
+    if (shotsSincePrune >= 20) { shotsSincePrune = 0; pruneForSpace(); }
     if (notify && onAlarm) onAlarm({ event: ev, at: Date.now(), strength: force, blob: blob });
   }, 'image/jpeg', 0.72);
 }

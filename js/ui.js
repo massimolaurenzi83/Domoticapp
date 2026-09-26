@@ -504,6 +504,25 @@ function photoManager(onApply){
 }
 
 function control(f, onApply){
+  if (f.type === 'choice') {
+    var sel = document.createElement('select');
+    sel.className = 'ed-select';
+    sel.style.width = '190px';
+    sel.style.flex = 'none';
+    for (var k in f.options) {
+      var o = document.createElement('option');
+      o.value = k;
+      o.textContent = f.options[k];
+      sel.appendChild(o);
+    }
+    sel.value = settings[f.id] || '';
+    sel.addEventListener('change', function(){
+      settings[f.id] = sel.value;
+      save(); if (onApply) onApply(f.id);
+    });
+    return sel;
+  }
+
   if (f.type === 'bool') {
     var sw = document.createElement('button');
     sw.type = 'button';

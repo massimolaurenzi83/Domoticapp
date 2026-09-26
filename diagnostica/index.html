@@ -5,166 +5,303 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Diagnostica</title>
 <style>
-  body{margin:0;padding:24px 18px;background:#0b0d10;color:#e8eaed;
+  body{margin:0;padding:22px 16px 40px;background:#0b0d10;color:#e8eaed;
        font-family:-apple-system,"Roboto",Arial,sans-serif;line-height:1.5;}
-  .box{max-width:680px;margin:0 auto;}
-  h1{font-size:24px;font-weight:400;margin:0 0 6px;}
-  .sub{font-size:15px;color:#9aa0a8;margin-bottom:22px;}
-  .riga{background:#14171b;border-radius:10px;padding:14px 16px;margin-bottom:10px;}
+  .box{max-width:720px;margin:0 auto;}
+  h1{font-size:24px;font-weight:400;margin:0 0 4px;}
+  h2{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:#6a7280;font-weight:400;margin:26px 0 8px;}
+  .sub{font-size:15px;color:#9aa0a8;margin-bottom:10px;}
+  .riga{background:#14171b;border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start;}
+  .punto{width:12px;height:12px;border-radius:50%;margin-top:6px;flex:none;background:#5d636b;}
+  .ok .punto{background:#6cc47a;} .ko .punto{background:#e07b7b;} .avviso .punto{background:#f0b429;}
   .nome{font-size:16px;}
-  .esito{font-size:15px;margin-top:5px;}
-  .ok{color:#6cc47a;}
-  .ko{color:#e07b7b;}
-  .attesa{color:#9aa0a8;}
-  .dett{font-size:13px;color:#8a9099;margin-top:5px;word-break:break-all;}
-  button{background:#1d3a55;color:#e2eefb;border:0;font-family:inherit;
-         font-size:17px;padding:16px 22px;border-radius:10px;width:100%;margin-top:18px;}
-  .riassunto{background:#1b1f25;border-radius:10px;padding:16px;margin-top:18px;
-             font-size:15px;color:#c3c7cc;}
+  .dett{font-size:13px;color:#8a9099;word-break:break-word;}
+  .cosa{background:#1b1f25;border-left:3px solid #f0b429;padding:14px 16px;margin:18px 0;font-size:16px;}
+  .cosa.tutto-ok{border-left-color:#6cc47a;}
+  .cosa li{margin-bottom:8px;}
+  button{background:#1d3a55;color:#e2eefb;border:0;font-family:inherit;font-size:17px;
+         padding:15px 18px;border-radius:10px;margin:6px 6px 0 0;}
+  a{color:#7fb2ea;}
+  .ascolto{font-size:18px;margin-top:10px;min-height:26px;}
+  a.indietro{display:inline-block;background:#1b1f25;color:#e8eaed;text-decoration:none;
+             font-size:18px;padding:12px 20px;border-radius:12px;margin-bottom:18px;}
 </style>
 </head>
 <body>
 <div class="box">
 
+  <a class="indietro" href="../">&#8592; Torna al pannello</a>
   <h1>Diagnostica</h1>
-  <div class="sub">Questa pagina prova da sola tutto quello che al pannello serve per funzionare.</div>
+  <div class="sub">Controlla da sola tutto quello che serve al pannello e ti dice cosa fare.
+    <a href="../">Torna al pannello</a></div>
 
-  <div id="esiti"></div>
+  <div class="cosa" id="cosa">Controllo in corso...</div>
 
-  <div class="riassunto" id="riassunto">Prove in corso...</div>
+  <h2>Rete</h2>
+  <div id="rete"></div>
 
-  <button id="ripeti" type="button">Ripeti le prove</button>
+  <h2>Servizi usati dal pannello</h2>
+  <div id="servizi"></div>
 
+  <h2>Questo tablet</h2>
+  <div id="tablet"></div>
+
+  <h2>Prove a mano</h2>
+  <div class="sub">Queste due prove richiedono un tuo tocco, perche Chrome non le permette da solo.</div>
+  <button id="prova-voce" type="button">Fai parlare il tablet</button>
+  <button id="prova-mic" type="button">Prova il microfono</button>
+  <div class="ascolto" id="ascolto"></div>
+
+  <button id="ripeti" type="button" style="margin-top:22px;width:100%;">Ripeti tutti i controlli</button>
 </div>
 
 <script>
 (function(){
-  var esiti = document.getElementById('esiti');
-  var riassunto = document.getElementById('riassunto');
+  var esiti = {};
 
-  // Ogni prova e un indirizzo da raggiungere e un modo per capire se la
-  // risposta ha senso. Niente librerie, cosi funziona anche sui browser
-  // piu vecchi.
-  var PROVE = [
-    { nome: 'Internet in generale',
-      url: 'https://www.google.com/generate_204',
-      controlla: function(){ return true; } },
-
-    { nome: 'Meteo 1, Open-Meteo',
-      url: 'https://api.open-meteo.com/v1/forecast?latitude=44.5&longitude=11.3&current=temperature_2m',
-      controlla: function(d){ return d.current && typeof d.current.temperature_2m === 'number'; } },
-
-    { nome: 'Meteo 2, met.no',
-      url: 'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=44.5&lon=11.3',
-      controlla: function(d){ return d.properties && d.properties.timeseries; } },
-
-    { nome: 'Meteo 3, wttr.in',
-      url: 'https://wttr.in/44.5,11.3?format=j1',
-      controlla: function(d){ return d.current_condition && d.current_condition.length; } },
-
-    { nome: 'Ricerca citta 1',
-      url: 'https://geocoding-api.open-meteo.com/v1/search?count=1&name=Bologna',
-      controlla: function(d){ return d.results && d.results.length; } },
-
-    { nome: 'Ricerca citta 2, OpenStreetMap',
-      url: 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=Bologna',
-      controlla: function(d){ return d.length > 0; } }
-  ];
-
-  function riga(nome){
+  function riga(host, nome){
     var d = document.createElement('div');
     d.className = 'riga';
-    d.innerHTML = '<div class="nome">' + nome + '</div>' +
-                  '<div class="esito attesa">provo...</div>' +
-                  '<div class="dett"></div>';
-    esiti.appendChild(d);
+    d.innerHTML = '<div class="punto"></div><div><div class="nome"></div><div class="dett">controllo...</div></div>';
+    d.querySelector('.nome').textContent = nome;
+    document.getElementById(host).appendChild(d);
     return d;
   }
 
-  function scrivi(el, ok, testo, dettaglio){
-    el.querySelector('.esito').className = 'esito ' + (ok ? 'ok' : 'ko');
-    el.querySelector('.esito').textContent = testo;
+  function scrivi(el, stato, dettaglio){
+    el.className = 'riga ' + stato;
     el.querySelector('.dett').textContent = dettaglio || '';
   }
 
-  function prova(p, el, fatto){
-    var partito = new Date().getTime();
-    var scaduto = false;
-    var timer = setTimeout(function(){
-      scaduto = true;
-      scrivi(el, false, 'NON RISPONDE', 'scaduto dopo 10 secondi');
-      fatto(false);
-    }, 10000);
-
-    // La prova di internet chiama un indirizzo che non concede la lettura
-    // ad altri siti: basta sapere che risponde, quindi non chiediamo di
-    // leggere il contenuto.
-    var opzioni = p.nome.indexOf('Internet') === 0
-      ? { cache: 'no-store', mode: 'no-cors' }
-      : { cache: 'no-store' };
-
-    fetch(p.url, opzioni).then(function(r){
-      if (scaduto) return;
-      clearTimeout(timer);
-      var ms = new Date().getTime() - partito;
-
-      if (p.nome.indexOf('Internet') === 0) {
-        scrivi(el, true, 'RAGGIUNGIBILE', 'risposta in ' + ms + ' millisecondi');
-        fatto(true);
-        return;
-      }
-
-      if (!r.ok) {
-        scrivi(el, false, 'RIFIUTATO', 'il server ha risposto con stato ' + r.status);
-        fatto(false);
-        return;
-      }
-
-      r.json().then(function(d){
-        if (p.controlla(d)) {
-          scrivi(el, true, 'FUNZIONA', 'risposta valida in ' + ms + ' millisecondi');
-          fatto(true);
-        } else {
-          scrivi(el, false, 'RISPOSTA STRANA', 'ha risposto ma i dati non sono quelli attesi');
-          fatto(false);
-        }
-      }, function(){
-        scrivi(el, false, 'RISPOSTA NON LEGGIBILE',
-               'ha risposto qualcosa che non sono dati. Di solito significa che qualcuno si e messo in mezzo');
-        fatto(false);
+  // Chiede un indirizzo e dice se ha risposto. Con aperto a falso non
+  // legge il contenuto: serve per i siti che non lo concedono.
+  function raggiungi(url, aperto){
+    return new Promise(function(resolve){
+      var fatto = false;
+      var timer = setTimeout(function(){ if (!fatto) { fatto = true; resolve({ ok: false, motivo: 'nessuna risposta in 10 secondi' }); } }, 10000);
+      var opz = aperto === false ? { cache: 'no-store', mode: 'no-cors' } : { cache: 'no-store' };
+      fetch(url, opz).then(function(r){
+        if (fatto) return;
+        fatto = true; clearTimeout(timer);
+        if (aperto === false) { resolve({ ok: true }); return; }
+        if (!r.ok) { resolve({ ok: false, motivo: 'il server ha risposto ' + r.status }); return; }
+        r.json().then(function(){ resolve({ ok: true }); }, function(){ resolve({ ok: false, motivo: 'risposta non leggibile' }); });
+      }, function(e){
+        if (fatto) return;
+        fatto = true; clearTimeout(timer);
+        resolve({ ok: false, motivo: (e && e.message) || 'errore di rete' });
       });
-
-    }, function(e){
-      if (scaduto) return;
-      clearTimeout(timer);
-      scrivi(el, false, 'IRRAGGIUNGIBILE', (e && e.message ? e.message : 'errore di rete'));
-      fatto(false);
     });
   }
 
-  function avvia(){
-    esiti.innerHTML = '';
-    riassunto.textContent = 'Prove in corso...';
+  // ---------------- rete ----------------
+  //
+  // Le tre prove sono scelte apposta. Google risponde sempre. Il servizio
+  // di ricerca citta ha un certificato recente e gli indirizzi nuovi, IPv6.
+  // Il servizio meteo ha lo stesso certificato ma solo gli indirizzi
+  // vecchi, IPv4. Confrontandole si capisce dov e il guasto.
 
-    var righe = [];
-    for (var i = 0; i < PROVE.length; i++) righe.push(riga(PROVE[i].nome));
+  function rete(){
+    var r1 = riga('rete', 'Internet');
+    var r2 = riga('rete', 'Certificati recenti, indirizzi nuovi');
+    var r3 = riga('rete', 'Certificati recenti, indirizzi vecchi');
 
-    var rimaste = PROVE.length;
-    var riusciti = 0;
+    return Promise.all([
+      raggiungi('https://www.google.com/generate_204', false),
+      raggiungi('https://geocoding-api.open-meteo.com/v1/search?count=1&name=Roma'),
+      raggiungi('https://api.open-meteo.com/v1/forecast?latitude=41.9&longitude=12.5&current=temperature_2m')
+    ]).then(function(r){
+      scrivi(r1, r[0].ok ? 'ok' : 'ko', r[0].ok ? 'collegato' : r[0].motivo);
+      scrivi(r2, r[1].ok ? 'ok' : 'ko', r[1].ok ? 'funziona' : r[1].motivo);
+      scrivi(r3, r[2].ok ? 'ok' : 'ko', r[2].ok ? 'funziona' : r[2].motivo);
+      esiti.internet = r[0].ok;
+      esiti.nuovi = r[1].ok;
+      esiti.vecchi = r[2].ok;
+    });
+  }
 
-    for (var k = 0; k < PROVE.length; k++) {
-      (function(p, el){
-        prova(p, el, function(ok){
-          if (ok) riusciti++;
-          rimaste--;
-          if (rimaste === 0) {
-            riassunto.textContent = riusciti + ' prove riuscite su ' + PROVE.length +
-              '. Leggi a Claude le righe rosse.';
-          }
-        });
-      })(PROVE[k], righe[k]);
+  // ---------------- servizi ----------------
+
+  var SERVIZI = [
+    ['Meteo, fornitore 1', 'https://api.open-meteo.com/v1/forecast?latitude=41.9&longitude=12.5&current=temperature_2m'],
+    ['Meteo, fornitore 2', 'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=41.9&lon=12.5'],
+    ['Meteo, fornitore 3', 'https://wttr.in/41.9,12.5?format=j1'],
+    ['Ricerca citta, di scorta', 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=Roma'],
+    ['Radio', 'https://de1.api.radio-browser.info/json/stations/search?limit=1&name=deejay']
+  ];
+
+  function servizi(){
+    var meteoOk = 0;
+    return Promise.all(SERVIZI.map(function(s, i){
+      var el = riga('servizi', s[0]);
+      return raggiungi(s[1]).then(function(r){
+        scrivi(el, r.ok ? 'ok' : 'ko', r.ok ? 'funziona' : r.motivo);
+        if (r.ok && i < 3) meteoOk++;
+        if (i === 4) esiti.radio = r.ok;
+      });
+    })).then(function(){ esiti.meteo = meteoOk; });
+  }
+
+  // ---------------- tablet ----------------
+
+  function tablet(){
+    var ua = navigator.userAgent;
+    var chrome = (ua.match(/Chrome\/(\d+)/) || [])[1];
+    var android = (ua.match(/Android ([\d.]+)/) || [])[1];
+
+    var el = riga('tablet', 'Browser');
+    scrivi(el, chrome ? 'ok' : 'avviso',
+      (chrome ? 'Chrome ' + chrome : 'non e Chrome') + (android ? ', Android ' + android : ''));
+
+    el = riga('tablet', 'Connessione protetta');
+    scrivi(el, window.isSecureContext ? 'ok' : 'ko',
+      window.isSecureContext ? 'si, microfono e fotocamera possono funzionare' : 'no: apri il pannello dall indirizzo https');
+
+    var sr = window.SpeechRecognition || window.webkitSpeechRecognition;
+    el = riga('tablet', 'Riconoscimento della voce');
+    scrivi(el, sr ? 'ok' : 'ko', sr ? 'disponibile' : 'non disponibile in questo browser');
+    esiti.riconoscimento = !!sr;
+
+    el = riga('tablet', 'Voce italiana per rispondere');
+    function voci(){
+      var v = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+      var it = v.filter(function(x){ return /^it([-_]|$)/i.test(x.lang); });
+      esiti.voceItaliana = it.length > 0;
+      if (!window.speechSynthesis) scrivi(el, 'ko', 'la sintesi vocale non c e');
+      else if (!v.length) scrivi(el, 'avviso', 'elenco delle voci non ancora caricato, ripeti i controlli fra poco');
+      else scrivi(el, it.length ? 'ok' : 'ko', it.length ? 'presente: ' + it[0].name
+        : 'manca. Vai in Impostazioni, Lingua e immissione, Sintesi vocale, e scarica l italiano');
+    }
+    voci();
+    if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = voci;
+
+    function permesso(nome, etichetta, chiave){
+      var r = riga('tablet', etichetta);
+      if (!navigator.permissions || !navigator.permissions.query) {
+        scrivi(r, 'avviso', 'il browser non permette di verificarlo');
+        return Promise.resolve();
+      }
+      return navigator.permissions.query({ name: nome }).then(function(p){
+        esiti[chiave] = p.state;
+        var testi = {
+          granted: ['ok', 'concesso'],
+          prompt: ['avviso', 'non ancora deciso: verra chiesto al primo uso'],
+          denied: ['ko', 'negato. Si riattiva da Chrome: lucchetto accanto all indirizzo, Impostazioni sito']
+        };
+        var t = testi[p.state] || ['avviso', p.state];
+        scrivi(r, t[0], t[1]);
+      }, function(){ scrivi(r, 'avviso', 'non verificabile'); });
+    }
+
+    var lock = riga('tablet', 'Schermo sempre acceso');
+    scrivi(lock, navigator.wakeLock ? 'ok' : 'avviso',
+      navigator.wakeLock ? 'supportato' : 'non supportato: imposta lo spegnimento dello schermo al massimo nelle impostazioni di Android');
+
+    var sw = riga('tablet', 'Funzionamento senza rete');
+    scrivi(sw, navigator.serviceWorker && navigator.serviceWorker.controller ? 'ok' : 'avviso',
+      navigator.serviceWorker && navigator.serviceWorker.controller
+        ? 'attivo' : 'non ancora attivo: apri il pannello una volta e ricarica');
+
+    var pr = [permesso('microphone', 'Permesso microfono', 'mic'), permesso('camera', 'Permesso fotocamera', 'cam')];
+
+    if (navigator.getBattery) {
+      var b = riga('tablet', 'Batteria');
+      pr.push(navigator.getBattery().then(function(bat){
+        var pct = Math.round(bat.level * 100);
+        esiti.batteria = { pct: pct, carica: bat.charging };
+        scrivi(b, (!bat.charging && pct < 30) ? 'ko' : (bat.charging ? 'ok' : 'avviso'),
+          pct + '%, ' + (bat.charging ? 'in carica' : 'non in carica'));
+      }));
+    }
+
+    if (navigator.storage && navigator.storage.estimate) {
+      var st = riga('tablet', 'Spazio per foto e archivio');
+      pr.push(navigator.storage.estimate().then(function(e){
+        var mb = Math.round((e.quota || 0) / 1048576);
+        var usati = Math.round((e.usage || 0) / 1048576);
+        scrivi(st, mb > 200 ? 'ok' : 'avviso', usati + ' MB usati su ' + mb + ' disponibili');
+      }));
+    }
+
+    return Promise.all(pr);
+  }
+
+  // ---------------- cosa fare ----------------
+
+  function consigli(){
+    var fare = [];
+
+    if (!esiti.internet) {
+      fare.push('Il tablet non e collegato a internet. Controlla il Wi-Fi.');
+    } else if (esiti.nuovi && !esiti.vecchi) {
+      fare.push('Il tablet raggiunge solo una parte di internet: la connessione e rimasta incompleta. ' +
+                'Spegni e riaccendi il tablet. Se non basta, spegni e riaccendi il Wi-Fi.');
+    } else if (!esiti.nuovi && !esiti.vecchi) {
+      fare.push('Il tablet non riconosce i certificati dei siti recenti. ' +
+                'Installa i certificati dalla pagina <a href="../certificato/">certificato</a>.');
+    }
+    if (esiti.internet && esiti.meteo === 0 && esiti.vecchi !== false) {
+      fare.push('Nessun servizio meteo risponde. Se il problema resta, conviene attivare il servizio di collegamento, che fa da tramite.');
+    }
+    if (esiti.riconoscimento === false) fare.push('Questo browser non riconosce la voce: usa Chrome.');
+    if (esiti.voceItaliana === false) fare.push('Manca la voce italiana: Impostazioni di Android, Lingua e immissione, Sintesi vocale, scarica l italiano.');
+    if (esiti.mic === 'denied') fare.push('Il microfono e negato per questo sito. In Chrome tocca il lucchetto accanto all indirizzo, poi Impostazioni sito, e consenti il microfono.');
+    if (esiti.cam === 'denied') fare.push('La fotocamera e negata per questo sito. Si riattiva dallo stesso punto del microfono.');
+    if (esiti.batteria && !esiti.batteria.carica) fare.push('Il tablet non e in carica. Su un pannello sempre acceso va tenuto collegato, con il caricatore originale da 2 ampere.');
+
+    var box = document.getElementById('cosa');
+    if (!fare.length) {
+      box.className = 'cosa tutto-ok';
+      box.textContent = 'Tutto a posto. Il pannello ha quello che gli serve.';
+    } else {
+      box.className = 'cosa';
+      box.innerHTML = '<strong>Cosa fare</strong><ol><li>' + fare.join('</li><li>') + '</li></ol>';
     }
   }
+
+  function avvia(){
+    esiti = {};
+    ['rete', 'servizi', 'tablet'].forEach(function(id){ document.getElementById(id).innerHTML = ''; });
+    document.getElementById('cosa').className = 'cosa';
+    document.getElementById('cosa').textContent = 'Controllo in corso...';
+    Promise.all([rete(), servizi(), tablet()]).then(consigli, consigli);
+  }
+
+  // ---------------- prove a mano ----------------
+
+  document.getElementById('prova-voce').addEventListener('click', function(){
+    var out = document.getElementById('ascolto');
+    if (!window.speechSynthesis) { out.textContent = 'Questo browser non sa parlare.'; return; }
+    var u = new SpeechSynthesisUtterance('Ciao, la voce del pannello funziona.');
+    u.lang = 'it-IT';
+    var it = window.speechSynthesis.getVoices().filter(function(x){ return /^it([-_]|$)/i.test(x.lang); })[0];
+    if (it) u.voice = it;
+    u.onend = function(){ out.textContent = 'Hai sentito la frase? Se no, alza il volume multimediale del tablet.'; };
+    u.onerror = function(e){ out.textContent = 'La voce non e partita: ' + (e.error || 'errore'); };
+    out.textContent = 'Parlo...';
+    window.speechSynthesis.speak(u);
+  });
+
+  document.getElementById('prova-mic').addEventListener('click', function(){
+    var out = document.getElementById('ascolto');
+    var R = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!R) { out.textContent = 'Questo browser non riconosce la voce.'; return; }
+    var rec = new R();
+    rec.lang = 'it-IT';
+    rec.interimResults = false;
+    out.textContent = 'Parla adesso, per esempio: prova uno due tre';
+    rec.onresult = function(e){ out.textContent = 'Ho sentito: ' + e.results[0][0].transcript; };
+    rec.onerror = function(e){
+      var spiega = {
+        'not-allowed': 'microfono negato per questo sito',
+        'no-speech': 'non ho sentito niente, avvicinati e riprova',
+        'network': 'il riconoscimento passa dai server di Google e la rete non risponde',
+        'audio-capture': 'nessun microfono utilizzabile'
+      };
+      out.textContent = 'Il microfono non ha funzionato: ' + (spiega[e.error] || e.error);
+    };
+    try { rec.start(); } catch (err) { out.textContent = 'Non riesco ad avviare il microfono.'; }
+  });
 
   document.getElementById('ripeti').addEventListener('click', avvia);
   avvia();

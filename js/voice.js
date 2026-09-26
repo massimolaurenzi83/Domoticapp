@@ -19,6 +19,9 @@ var onCommand = null;
 var onStateChange = null;
 var status = 'non avviato';
 var captureOnce = false;
+var lastErrorAt = 0;
+var lastErrorKind = '';
+var listeningNow = false;
 var waitingTouch = false;
 var triedAfterTouch = false;
 
@@ -54,6 +57,10 @@ export function startVoice(handlers){
   if (!R) { status = 'riconoscimento vocale non disponibile in questo browser'; return false; }
   if (!window.isSecureContext) { status = 'serve HTTPS per il microfono'; return false; }
 
+  // Se sta gia ascoltando basta aggiornare chi riceve i comandi: creare un
+  // secondo riconoscitore ne lasciava due in funzione insieme.
+  if (wanted && rec) return true;
+
   wanted = true;
   build(R);
   spin();
@@ -74,7 +81,7 @@ function build(R){
   rec.interimResults = false;
   rec.maxAlternatives = 1;
 
-  rec.onstart = function(){ status = 'in ascolto'; triedAfterTouch = false; notify('listening'); };
+  rec.onstart = function(){ status = 'in ascolto'; listeningNow = true; triedAfterTouch = false; lastErrorKind = ''; notify('listening'); };
 
   rec.onresult = function(ev){
     for (var i = ev.resultIndex; i < ev.results.length; i++) {
@@ -104,9 +111,12 @@ function build(R){
       return;
     }
     status = e === 'network' ? 'rete assente, riprovo' : 'errore ' + e;
+    lastErrorAt = Date.now();
+    lastErrorKind = e;
   };
 
   rec.onend = function(){
+    listeningNow = false;
     if (!wanted) { status = 'fermo'; notify('idle'); return; }
     if (waitingTouch) return;
     spin();
@@ -116,15 +126,30 @@ function build(R){
 function spin(){
   if (!wanted || speaking) return;
   if (restartTimer) clearTimeout(restartTimer);
+  // Dopo un errore di rete si aspetta di piu: il riconoscimento passa dai
+  // server di Google, e riprovare ogni terzo di secondo senza rete scalda
+  // il tablet per niente.
+  var attesa = (lastErrorKind === 'network' && Date.now() - lastErrorAt < 30000) ? 5000 : 350;
   restartTimer = setTimeout(function(){
     if (!wanted || speaking) return;
     try { rec.start(); }
     catch (e) { /* gia avviato: il prossimo onend rimettera in moto */ }
-  }, 350);
+  }, attesa);
 }
 
 // La prossima frase viene presa cosi com'e, senza bisogno del nome.
-export function captureNext(){ captureOnce = true; notify('capturing'); }
+export function captureNext(){
+  if (!wanted || waitingTouch) return false;
+  captureOnce = true;
+  notify('capturing');
+  // Se entro venti secondi non arriva nessuna frase, la dettatura si
+  // annulla: altrimenti la prima frase sentita piu tardi diventerebbe un
+  // promemoria per sbaglio.
+  setTimeout(function(){ if (captureOnce) { captureOnce = false; notify('listening'); } }, 20000);
+  return true;
+}
+
+export function voiceListening(){ return !!(wanted && !waitingTouch); }
 export function cancelCapture(){ captureOnce = false; notify('listening'); }
 
 function handle(text){

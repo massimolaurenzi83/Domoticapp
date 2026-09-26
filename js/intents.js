@@ -19,7 +19,7 @@ function notYet(cosa, tab){
 }
 
 import { addItem, pendingCount } from './shopping.js';
-import { parseTimer, addTimer, spokenDuration } from './timers.js';
+import { parseTimer, addTimer, spokenDuration, clearAllTimers, activeTimers } from './timers.js';
 
 // Modi comuni di chiamare una stanza con un altro nome. Valgono solo se in
 // casa esiste davvero una stanza con quel nome.
@@ -72,6 +72,11 @@ export function runCommand(text){
 
   // Il timer va cercato prima della spesa: "aggiungi un timer" non e spesa.
   if (has(text, ['timer', 'conta alla rovescia', 'cronometro'])) {
+    if (has(text, ['annulla', 'cancella', 'ferma', 'togli', 'basta', 'stop'])) {
+      var quanti = activeTimers().length;
+      clearAllTimers();
+      return { reply: quanti ? 'Timer annullato.' : 'Non ci sono timer in corso.', screen: 'ambient' };
+    }
     var t = parseTimer(text);
     if (!t) return { reply: 'Per quanto tempo?', screen: 'ambient' };
     addTimer(t.seconds, t.name);

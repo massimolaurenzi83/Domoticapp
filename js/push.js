@@ -115,7 +115,10 @@ function subscribe(r){
         })
       });
     })
-    .then(function(){ return { ok: true, message: 'Notifiche attive su questo telefono.' }; })
+    .then(function(res){
+      if (!res.ok) throw new Error(res.status === 401 ? 'parola condivisa rifiutata dal servizio' : 'il servizio ha risposto ' + res.status);
+      return { ok: true, message: 'Notifiche attive su questo dispositivo.' };
+    })
     .catch(function(e){ return { ok: false, message: 'Registrazione non riuscita: ' + e.message }; });
 }
 
