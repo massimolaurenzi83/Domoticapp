@@ -341,6 +341,21 @@ function boot(){
 
 var voiceBarTimer = null;
 
+// Piccola scritta in alto a destra, al posto del pallino, quando la voce
+// non puo partire. Meglio dire cosa fare che sparire senza spiegazioni.
+function micHint(text){
+  var el = document.getElementById('mic-hint');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'mic-hint';
+    el.style.cssText = 'position:absolute;top:12px;right:16px;z-index:18;font-size:13px;' +
+      'color:#9aa0a8;background:#14171b;padding:6px 12px;border-radius:999px;pointer-events:none;';
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  el.hidden = !text;
+}
+
 function setupVoice(){
   var dot = document.getElementById('mic-dot');
   if (!settings.voiceEnabled || !voiceAvailable()) { dot.hidden = true; return; }
@@ -349,6 +364,13 @@ function setupVoice(){
     onStateChange: function(state){
       dot.hidden = (state !== 'listening' && state !== 'capturing');
       if (state === 'capturing') showVoiceBar('', 'Ti ascolto, detta il promemoria.');
+      // Il passaggio a fermo arriva subito dopo un rifiuto: non deve
+      // cancellare l avviso che spiega cosa e successo.
+      if (state !== 'idle') {
+        micHint(state === 'needs-touch'
+          ? 'Tocca lo schermo per attivare la voce'
+          : (state === 'denied' ? 'Microfono non consentito da Chrome' : ''));
+      }
     },
     onCommand: function(rest, full, captured){
       awakeUntil = Date.now() + settings.wakeSeconds * 1000;

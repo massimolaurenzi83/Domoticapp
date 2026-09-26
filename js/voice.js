@@ -19,6 +19,23 @@ var onCommand = null;
 var onStateChange = null;
 var status = 'non avviato';
 var captureOnce = false;
+var waitingTouch = false;
+var triedAfterTouch = false;
+
+// Al primo tocco sullo schermo riaccende l ascolto, dentro il gesto
+// stesso: e l unico momento in cui Chrome su Android lo concede.
+function armTouchRetry(){
+  function onTouch(){
+    document.removeEventListener('touchstart', onTouch, true);
+    document.removeEventListener('click', onTouch, true);
+    if (!waitingTouch || !wanted) return;
+    waitingTouch = false;
+    triedAfterTouch = true;
+    try { rec.start(); } catch (e) {}
+  }
+  document.addEventListener('touchstart', onTouch, true);
+  document.addEventListener('click', onTouch, true);
+}
 var lastHeard = '';
 
 function Recognizer(){
@@ -57,7 +74,7 @@ function build(R){
   rec.interimResults = false;
   rec.maxAlternatives = 1;
 
-  rec.onstart = function(){ status = 'in ascolto'; notify('listening'); };
+  rec.onstart = function(){ status = 'in ascolto'; triedAfterTouch = false; notify('listening'); };
 
   rec.onresult = function(ev){
     for (var i = ev.resultIndex; i < ev.results.length; i++) {
@@ -69,7 +86,19 @@ function build(R){
   rec.onerror = function(ev){
     var e = ev && ev.error ? ev.error : 'sconosciuto';
     if (e === 'not-allowed' || e === 'service-not-allowed') {
+      // Chrome su Android rifiuta il microfono se la pagina si apre da sola,
+      // senza che nessuno abbia ancora toccato lo schermo. Non e un permesso
+      // negato: basta aspettare il primo tocco e riprovare. Solo se il
+      // rifiuto arriva anche dopo un tocco, il permesso e negato davvero.
+      if (!triedAfterTouch) {
+        waitingTouch = true;
+        status = 'in attesa di un tocco sullo schermo';
+        notify('needs-touch');
+        armTouchRetry();
+        return;
+      }
       wanted = false;
+      waitingTouch = false;
       status = 'permesso microfono negato';
       notify('denied');
       return;
@@ -79,6 +108,7 @@ function build(R){
 
   rec.onend = function(){
     if (!wanted) { status = 'fermo'; notify('idle'); return; }
+    if (waitingTouch) return;
     spin();
   };
 }
