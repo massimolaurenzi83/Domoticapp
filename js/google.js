@@ -50,7 +50,8 @@ export function sendToGoogle(testo){
   return fetch(base() + '/google', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Casa-Token': settings.syncToken },
-    body: JSON.stringify({ testo: String(testo).slice(0, 200) }),
+    // La posizione di casa serve a Google per le risposte legate al posto.
+    body: JSON.stringify({ testo: String(testo).slice(0, 200), lat: parseFloat(settings.lat), lon: parseFloat(settings.lon) }),
     signal: ctrl ? ctrl.signal : undefined
   }).then(function(r){
     return r.json().catch(function(){ return {}; }).then(function(j){

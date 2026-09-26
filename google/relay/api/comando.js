@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       refreshToken: process.env.GOOGLE_REFRESH_TOKEN
-    });
+    }, { location: { lat: body && body.lat, lon: body && body.lon } });
     res.status(200).json({ ok: true, risposta: r.text, voce: r.spoke });
   } catch (e) {
     res.status(e.code === 'auth' ? 401 : 502).json({ ok: false, error: e.message, auth: e.code === 'auth' });

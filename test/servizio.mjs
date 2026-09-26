@@ -166,11 +166,14 @@ const env = { CASA: kv(), CASA_TOKEN: TOKEN };
     visto = { u, token: o.headers['X-Relay-Token'], body: JSON.parse(o.body) };
     return new Response(JSON.stringify({ ok: true, risposta: 'Ok, accendo la luce.', voce: true }), { status: 200 });
   };
-  const r1 = await W.fetch(req('/google', { method: 'POST', token: TOKEN, body: { testo: 'accendi la luce' } }), envG);
+  const r1 = await W.fetch(req('/google', { method: 'POST', token: TOKEN, body: { testo: 'accendi la luce', lat: 41.9, lon: 12.5 } }), envG);
   const j1 = await r1.json();
   prova('il comando arriva al ponte con la sua parola',
     visto && visto.u === 'https://ponte.test/api/comando' && visto.token === 'segreto-ponte' && visto.body.testo === 'accendi la luce');
   prova('la risposta di Google torna al pannello', r1.ok && j1.ok && j1.risposta === 'Ok, accendo la luce.');
+  prova('la posizione di casa passa al ponte', visto.body.lat === 41.9 && visto.body.lon === 12.5);
+  await W.fetch(req('/google', { method: 'POST', token: TOKEN, body: { testo: 'accendi', lat: null } }), envG);
+  prova('una posizione mancante non diventa zero', visto.body.lat === null && visto.body.lon === null);
 
   globalThis.fetch = async () => new Response(JSON.stringify({ ok: false, error: 'autorizzazione Google scaduta', auth: true }), { status: 401 });
   const r2 = await W.fetch(req('/google', { method: 'POST', token: TOKEN, body: { testo: 'accendi' } }), envG);

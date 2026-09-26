@@ -49,6 +49,16 @@ const testo = cfg.find((f) => f.field === 6);
 const dialog = A.decode(cfg.find((f) => f.field === 3).value);
 prova('la frase sta nel campo giusto del messaggio', testo && testo.value.toString() === 'accendi la luce');
 prova('la lingua e l italiano', dialog.find((f) => f.field === 2).value.toString() === 'it-IT');
+prova('senza posizione non se ne manda una finta', !dialog.find((f) => f.field === 5));
+{
+  const m = A.buildRequest('farmacie vicine', 'it-IT', { lat: 41.9028, lon: 12.4964 });
+  const d = A.decode(A.decode(A.decode(m)[0].value).find((f) => f.field === 3).value);
+  const loc = d.find((f) => f.field === 5);
+  const ll = loc && A.decode(A.decode(loc.value)[0].value);
+  prova('la posizione di casa arriva a Google', ll && ll[0].value.readDoubleLE(0) === 41.9028 && ll[1].value.readDoubleLE(0) === 12.4964);
+  const n = A.buildRequest('x', 'it-IT', { lat: null, lon: 12 });
+  prova('una posizione non valida viene ignorata', !A.decode(A.decode(A.decode(n)[0].value).find((f) => f.field === 3).value).find((f) => f.field === 5));
+}
 
 // Google vero, permesso finto: deve rifiutare e il rifiuto va spiegato
 try {

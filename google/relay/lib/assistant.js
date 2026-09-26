@@ -27,11 +27,25 @@ const key = (field, wire) => varint((field << 3) | wire);
 const bytesField = (field, buf) => Buffer.concat([key(field, 2), varint(buf.length), buf]);
 const strField = (field, s) => bytesField(field, Buffer.from(s, 'utf8'));
 const intField = (field, n) => Buffer.concat([key(field, 0), varint(n)]);
+const doubleField = (field, x) => { const b = Buffer.alloc(8); b.writeDoubleLE(x, 0); return Buffer.concat([key(field, 1), b]); };
+
+// Posizione di casa: senza, Google usa quella del server, che sta a
+// Francoforte, e sbaglia le risposte legate al posto.
+export function validLocation(loc) {
+  return !!loc && Number.isFinite(loc.lat) && Number.isFinite(loc.lon) &&
+    Math.abs(loc.lat) <= 90 && Math.abs(loc.lon) <= 180;
+}
 
 // AssistRequest con dentro la sola configurazione e la frase da eseguire.
-export function buildRequest(text, languageCode) {
+export function buildRequest(text, languageCode, location) {
   const audioOut = Buffer.concat([intField(1, 2), intField(2, 16000), intField(3, 100)]); // MP3
-  const dialog = Buffer.concat([strField(2, languageCode), intField(7, 1)]);             // nuova conversazione
+  const parti = [strField(2, languageCode)];
+  if (validLocation(location)) {
+    const latLng = Buffer.concat([doubleField(1, location.lat), doubleField(2, location.lon)]);
+    parti.push(bytesField(5, bytesField(1, latLng)));                                     // device_location
+  }
+  parti.push(intField(7, 1));                                                              // nuova conversazione
+  const dialog = Buffer.concat(parti);
   const device = Buffer.concat([strField(1, 'default'), strField(3, 'default')]);
   const screen = intField(1, 3);                                                          // PLAYING: risposta anche in HTML
   const config = Buffer.concat([
@@ -137,9 +151,9 @@ const SPIEGAZIONI = {
 
 // Manda una frase a Google Assistant e aspetta la risposta. Restituisce
 // { ok, text, spoke } oppure lancia un errore con una spiegazione in italiano.
-export async function assist(text, creds, { languageCode = 'it-IT', timeoutMs = 15000 } = {}) {
+export async function assist(text, creds, { languageCode = 'it-IT', timeoutMs = 15000, location = null } = {}) {
   const token = creds.accessToken || await accessToken(creds);
-  const payload = buildRequest(text, languageCode);
+  const payload = buildRequest(text, languageCode, location);
   const frame = Buffer.alloc(5 + payload.length);
   frame.writeUInt8(0, 0);
   frame.writeUInt32BE(payload.length, 1);

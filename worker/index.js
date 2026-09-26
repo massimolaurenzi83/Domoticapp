@@ -35,6 +35,11 @@ async function hashBreve(testo){
   return out;
 }
 
+// Solo numeri veri: un valore vuoto non deve diventare zero.
+function numero(x){
+  return typeof x === 'number' && isFinite(x) ? x : null;
+}
+
 function confrontoSicuro(a, b){
   if (a.length !== b.length) return false;
   var diff = 0;
@@ -187,7 +192,7 @@ export default {
         var r = await fetch(env.GOOGLE_RELAY_URL.replace(/\/+$/, '') + '/api/comando', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Relay-Token': env.GOOGLE_RELAY_TOKEN },
-          body: JSON.stringify({ testo: testo })
+          body: JSON.stringify({ testo: testo, lat: numero(richiesta.lat), lon: numero(richiesta.lon) })
         });
         var esito = null;
         try { esito = await r.json(); } catch (e) {}
