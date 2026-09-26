@@ -152,6 +152,46 @@ function notify(state, payload){
 }
 
 // Parla e tiene il microfono chiuso finche non ha finito.
+// Sceglie esplicitamente una voce italiana. Senza, su alcuni tablet la
+// sintesi legge l italiano con la voce inglese, e diventa incomprensibile.
+function italianVoice(){
+  try {
+    var voci = window.speechSynthesis.getVoices() || [];
+    for (var i = 0; i < voci.length; i++) {
+      if (/^it([-_]|$)/i.test(voci[i].lang)) return voci[i];
+    }
+  } catch (e) {}
+  return null;
+}
+
+// L elenco delle voci arriva in ritardo: chiederlo subito lo fa caricare.
+if (window.speechSynthesis) {
+  try { window.speechSynthesis.getVoices(); } catch (e) {}
+}
+
+// Chrome su Android fa parlare la pagina solo dopo che qualcuno l ha
+// toccata. Questa frase muta, detta durante il primo tocco, sblocca la
+// voce per tutto il resto della giornata: risposte, interfono, timer.
+export function primeSpeech(){
+  if (!window.speechSynthesis) return;
+  try {
+    var u = new SpeechSynthesisUtterance(' ');
+    u.volume = 0;
+    window.speechSynthesis.speak(u);
+    speechUnlocked = true;
+  } catch (e) {}
+}
+
+var speechUnlocked = false;
+
+export function speechStatus(){
+  if (!window.speechSynthesis) return 'Risposta parlata: non disponibile in questo browser';
+  var voce = italianVoice();
+  var parte = voce ? 'voce italiana presente' :
+    'nessuna voce italiana. Installala da Impostazioni, Lingua e immissione, Sintesi vocale';
+  return 'Risposta parlata: ' + parte + (speechUnlocked ? '' : ', si attiva al primo tocco dello schermo');
+}
+
 export function say(phrase){
   if (!window.speechSynthesis) return;
   speaking = true;
@@ -159,6 +199,8 @@ export function say(phrase){
 
   var u = new SpeechSynthesisUtterance(phrase);
   u.lang = 'it-IT';
+  var voce = italianVoice();
+  if (voce) u.voice = voce;
   u.rate = 1.02;
   u.onend = u.onerror = function(){
     speaking = false;

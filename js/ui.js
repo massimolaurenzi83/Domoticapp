@@ -1,8 +1,11 @@
 // Disegno delle schermate e del pannello impostazioni.
 
 import { SCHEMA, settings, save } from './config.js';
-import { devices, scenes, speakers, toggle, runScene, needsBridge } from './devices.js';
-import { wallpaperList, setWallpaper } from './wallpaper.js';
+import { devices, scenes, speakers, toggle, runScene, needsBridge, notConnected, isLive } from './devices.js';
+import { wallpaperList, setWallpaper, loadWallpapers } from './wallpaper.js';
+import { widgetChooser } from './widgets.js';
+import { pickAndAdd, list as galleryList, urlFor, remove as galleryRemove } from './gallery.js';
+import { rooms, roomName, isExampleLayout } from './devices.js';
 import { loadReminders, removeReminder, describeWhen } from './reminders.js';
 import { renderSecurity } from './security-view.js';
 import { sendMessage } from './intercom.js';
@@ -34,25 +37,105 @@ export function renderTab(tab, onChange){
   if (tab === 'spesa') { renderShopping(body); return; }
   if (tab === 'sveglia') { renderAlarms(body); return; }
   if (tab === 'radio') { renderRadio(body); return; }
-  var grid = document.createElement('div');
-  grid.className = 'tile-grid';
+  if (tab === 'casa') { renderHome(body, onChange); return; }
 
-  var items = [];
-  if (tab === 'musica') {
-    for (var s = 0; s < speakers.length; s++) items.push({ kind:'dev', d:speakers[s] });
-  } else {
-    for (var i = 0; i < devices.length; i++) {
-      if (devices[i].room === tab) items.push({ kind:'dev', d:devices[i] });
-    }
-  }
-  for (var k = 0; k < scenes.length; k++) {
-    if (scenes[k].room === tab) items.push({ kind:'scene', d:scenes[k] });
-  }
-
-  for (var j = 0; j < items.length; j++) grid.appendChild(tile(items[j], onChange));
+  var elenco = tab === 'musica'
+    ? speakers.slice()
+    : devices.filter(function(d){ return d.type === 'clima'; });
+  var vuoto = tab === 'musica'
+    ? 'Nessun altoparlante. Aggiungili dalla scheda Casa, con il tasto Modifica.'
+    : 'Nessun climatizzatore. Aggiungilo dalla scheda Casa, con il tasto Modifica.';
 
   body.innerHTML = '';
+  if (!elenco.length) {
+    var v = document.createElement('div');
+    v.className = 'set-hint';
+    v.style.cssText = 'padding:24px 4px;font-size:16px;';
+    v.textContent = vuoto;
+    body.appendChild(v);
+    return;
+  }
+  var grid = document.createElement('div');
+  grid.className = 'room-grid';
+  for (var j = 0; j < elenco.length; j++) {
+    var d = elenco[j];
+    var etichetta = { kind: 'dev', d: d, room: roomName(d.room) };
+    grid.appendChild(tile(etichetta, onChange));
+  }
   body.appendChild(grid);
+}
+
+export var homeHooks = { onEdit: null };
+
+// La scheda Casa: le scene in cima, poi una sezione per ogni stanza con i
+// suoi dispositivi. Gli altoparlanti stanno nella scheda Musica.
+function renderHome(body, onChange){
+  body.innerHTML = '';
+
+  var top = document.createElement('div');
+  top.className = 'home-top';
+
+  var nota = document.createElement('div');
+  nota.className = 'home-note';
+  nota.textContent = isExampleLayout()
+    ? 'Stanze e dispositivi di esempio. Tocca Modifica per mettere i tuoi.'
+    : (isLive() ? '' : 'Da collegare a Google Home: per ora le caselle non comandano niente.');
+  top.appendChild(nota);
+
+  var edit = document.createElement('button');
+  edit.type = 'button';
+  edit.className = 'btn';
+  edit.textContent = 'Modifica';
+  edit.addEventListener('click', function(){ if (homeHooks.onEdit) homeHooks.onEdit(); });
+  top.appendChild(edit);
+  body.appendChild(top);
+
+  if (scenes.length) {
+    var sg = document.createElement('div');
+    sg.className = 'room-grid';
+    for (var k = 0; k < scenes.length; k++) sg.appendChild(tile({ kind: 'scene', d: scenes[k] }, onChange));
+    body.appendChild(section('Scene', sg));
+  }
+
+  var visti = {};
+  for (var r = 0; r < rooms.length; r++) {
+    var room = rooms[r];
+    var qui = devices.filter(function(d){ return d.room === room.id; });
+    for (var q = 0; q < qui.length; q++) visti[qui[q].id] = true;
+    if (!qui.length) continue;
+    var g = document.createElement('div');
+    g.className = 'room-grid';
+    for (var i = 0; i < qui.length; i++) g.appendChild(tile({ kind: 'dev', d: qui[i] }, onChange));
+    body.appendChild(section(room.name, g));
+  }
+
+  // Dispositivi rimasti senza una stanza valida: non devono sparire.
+  var orfani = devices.filter(function(d){ return !visti[d.id]; });
+  if (orfani.length) {
+    var og = document.createElement('div');
+    og.className = 'room-grid';
+    for (var o = 0; o < orfani.length; o++) og.appendChild(tile({ kind: 'dev', d: orfani[o] }, onChange));
+    body.appendChild(section('Senza stanza', og));
+  }
+
+  if (!devices.length && !scenes.length) {
+    var vuoto = document.createElement('div');
+    vuoto.className = 'set-hint';
+    vuoto.style.cssText = 'padding:24px 4px;font-size:16px;';
+    vuoto.textContent = 'Nessun dispositivo. Tocca Modifica per aggiungere stanze e dispositivi.';
+    body.appendChild(vuoto);
+  }
+}
+
+function section(title, content){
+  var s = document.createElement('div');
+  s.className = 'room-section';
+  var h = document.createElement('div');
+  h.className = 'room-title';
+  h.textContent = title;
+  s.appendChild(h);
+  s.appendChild(content);
+  return s;
 }
 
 // Manda un messaggio a chi e in casa. Il pannello di la lo legge ad alta
@@ -199,15 +282,25 @@ function tile(item, onChange){
   var wrap = document.createElement('div');
   var name = document.createElement('div');
   name.className = 'tile-name';
-  name.textContent = d.name;
+  name.textContent = item.room ? d.name + ', ' + item.room : d.name;
   wrap.appendChild(name);
 
-  var blocked = item.kind === 'dev' && needsBridge(d);
+  var bridgeMissing = item.kind === 'dev' && needsBridge(d);
+  var blocked = item.kind === 'dev' ? notConnected(d) : !isLive();
+  var blockedText = bridgeMissing ? 'serve il ponte' : 'da collegare';
+  var blockedTap = bridgeMissing ? 'raggiungibile solo da casa' : 'si collega tramite Google Home';
+
+  if (item.kind === 'scene' && blocked) {
+    var sc = document.createElement('div');
+    sc.className = 'tile-state';
+    sc.textContent = 'da collegare';
+    wrap.appendChild(sc);
+  }
 
   if (item.kind === 'dev') {
     var st = document.createElement('div');
     st.className = 'tile-state';
-    st.textContent = blocked ? 'serve il ponte' : (d.on ? 'acceso' : 'spento');
+    st.textContent = blocked ? blockedText : (d.on ? 'acceso' : 'spento');
     wrap.appendChild(st);
   }
 
@@ -217,10 +310,20 @@ function tile(item, onChange){
   el.appendChild(wrap);
 
   el.addEventListener('click', function(){
-    if (item.kind === 'scene') runScene(d.id);
+    if (item.kind === 'scene') {
+      if (!isLive()) {
+        var hint = el.querySelector('.tile-state');
+        if (hint) {
+          hint.textContent = 'si collega tramite Google Home';
+          setTimeout(function(){ hint.textContent = 'da collegare'; }, 2500);
+        }
+        return;
+      }
+      runScene(d.id);
+    }
     else if (blocked) {
-      el.lastChild.lastChild.textContent = 'raggiungibile solo da casa';
-      setTimeout(function(){ el.lastChild.lastChild.textContent = 'serve il ponte'; }, 2500);
+      el.lastChild.lastChild.textContent = blockedTap;
+      setTimeout(function(){ el.lastChild.lastChild.textContent = blockedText; }, 2500);
       return;
     }
     else {
@@ -241,6 +344,7 @@ export function buildSettings(onApply){
 
   for (var i = 0; i < SCHEMA.length; i++) {
     var f = SCHEMA[i];
+    if (f.type === 'hidden') continue;
 
     if (f.group && f.group !== lastGroup) {
       lastGroup = f.group;
@@ -266,11 +370,13 @@ export function buildSettings(onApply){
       lab.appendChild(h);
     }
     row.appendChild(lab);
-    if (f.type === 'wallpaper') {
+    if (f.type === 'wallpaper' || f.type === 'widgets' || f.type === 'photos') {
       row.style.flexDirection = 'column';
       row.style.alignItems = 'stretch';
       lab.style.marginBottom = '10px';
-      row.appendChild(wallpaperPicker(onApply));
+      if (f.type === 'wallpaper') row.appendChild(wallpaperPicker(onApply));
+      if (f.type === 'widgets') row.appendChild(widgetChooser(function(){ if (onApply) onApply('homeWidgets'); }));
+      if (f.type === 'photos') row.appendChild(photoManager(onApply));
     } else {
       row.appendChild(control(f, onApply));
     }
@@ -279,40 +385,122 @@ export function buildSettings(onApply){
 }
 
 function wallpaperPicker(onApply){
+  var wrap = document.createElement('div');
   var strip = document.createElement('div');
   strip.style.cssText = 'display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;';
-  var files = [''].concat(wallpaperList());
+  wrap.appendChild(strip);
 
-  for (var i = 0; i < files.length; i++) {
-    (function(file){
-      var b = document.createElement('button');
-      b.type = 'button';
-      var chosen = (settings.wallpaper || '') === file;
-      b.style.cssText =
-        'width:116px;height:72px;flex:none;border-radius:10px;cursor:pointer;' +
-        'background:#1e2228 center/cover;color:#9aa0a8;font-family:inherit;font-size:13px;' +
-        'border:2px solid ' + (chosen ? '#4a8fe0' : 'transparent') + ';';
-      if (file) b.style.backgroundImage = 'url("wallpapers/' + file + '")';
-      else b.textContent = 'Nessuno';
+  function paint(){
+    strip.innerHTML = '';
+    var voci = [{ value: '', url: '' }].concat(wallpaperList());
 
-      b.addEventListener('click', function(){
-        setWallpaper(file);
-        var all = strip.getElementsByTagName('button');
-        for (var k = 0; k < all.length; k++) all[k].style.borderColor = 'transparent';
-        b.style.borderColor = '#4a8fe0';
+    for (var i = 0; i < voci.length; i++) {
+      (function(v){
+        var b = document.createElement('button');
+        b.type = 'button';
+        var chosen = (settings.wallpaper || '') === v.value;
+        b.style.cssText =
+          'width:116px;height:72px;flex:none;border-radius:10px;position:relative;' +
+          'background:#1e2228 center/cover;color:#9aa0a8;font-family:inherit;font-size:13px;' +
+          'border:2px solid ' + (chosen ? '#4a8fe0' : 'transparent') + ';';
+        if (v.url) b.style.backgroundImage = 'url("' + v.url + '")';
+        else b.textContent = 'Nessuno';
+
+        b.addEventListener('click', function(){
+          setWallpaper(v.value);
+          paint();
+          if (onApply) onApply('wallpaper');
+        });
+        strip.appendChild(b);
+      })(voci[i]);
+    }
+  }
+
+  var add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'btn';
+  add.style.marginTop = '10px';
+  add.textContent = 'Aggiungi uno sfondo dalla galleria';
+  var esito = document.createElement('div');
+  esito.className = 'set-hint';
+  add.addEventListener('click', function(){
+    esito.textContent = 'Scegli un immagine...';
+    pickAndAdd('wallpaper', false).then(function(r){
+      if (!r.salvate) { esito.textContent = r.scartate ? 'Immagine non leggibile.' : ''; return; }
+      return loadWallpapers().then(function(){
+        var mie = wallpaperList().filter(function(x){ return x.own; });
+        if (mie.length) setWallpaper(mie[mie.length - 1].value);
+        esito.textContent = 'Sfondo aggiunto e scelto.';
+        paint();
         if (onApply) onApply('wallpaper');
       });
-      strip.appendChild(b);
-    })(files[i]);
+    });
+  });
+  wrap.appendChild(add);
+  wrap.appendChild(esito);
+
+  paint();
+  return wrap;
+}
+
+// Le foto della cornice aggiunte dal tablet: anteprime da cancellare con
+// un tocco, e il tasto per aggiungerne di nuove dalla galleria.
+function photoManager(onApply){
+  var wrap = document.createElement('div');
+  var strip = document.createElement('div');
+  strip.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
+  var esito = document.createElement('div');
+  esito.className = 'set-hint';
+
+  function paint(){
+    galleryList('photo').then(function(foto){
+      strip.innerHTML = '';
+      if (!foto.length) {
+        var vuoto = document.createElement('div');
+        vuoto.className = 'set-hint';
+        vuoto.textContent = 'Nessuna foto ancora. Finche non ne aggiungi, al posto della cornice resta la stazione meteo.';
+        strip.appendChild(vuoto);
+      }
+      foto.forEach(function(rec){
+        var t = document.createElement('div');
+        t.style.cssText = 'width:96px;height:64px;border-radius:8px;background:#1e2228 center/cover;position:relative;';
+        t.style.backgroundImage = 'url("' + urlFor(rec) + '")';
+        var x = document.createElement('button');
+        x.type = 'button';
+        x.textContent = '\u00D7';
+        x.setAttribute('aria-label', 'Togli questa foto');
+        x.style.cssText = 'position:absolute;top:2px;right:2px;width:28px;height:28px;border-radius:50%;' +
+          'border:0;background:rgba(0,0,0,.7);color:#fff;font-size:17px;';
+        x.addEventListener('click', function(){
+          galleryRemove(rec.id).then(function(){ paint(); if (onApply) onApply('photos'); });
+        });
+        t.appendChild(x);
+        strip.appendChild(t);
+      });
+    });
   }
 
-  if (files.length === 1) {
-    var note = document.createElement('div');
-    note.className = 'set-hint';
-    note.textContent = 'Nessuna immagine trovata. Caricale nella cartella wallpapers e aggiungile a wallpapers/manifest.json';
-    strip.appendChild(note);
-  }
-  return strip;
+  var add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'btn';
+  add.style.marginTop = '10px';
+  add.textContent = 'Aggiungi foto dalla galleria';
+  add.addEventListener('click', function(){
+    esito.textContent = 'Scegli una o piu foto...';
+    pickAndAdd('photo', true).then(function(r){
+      esito.textContent = r.salvate
+        ? 'Aggiunte ' + r.salvate + (r.salvate === 1 ? ' foto.' : ' foto.') + (r.scartate ? ' ' + r.scartate + ' non leggibili.' : '')
+        : (r.scartate ? 'Le immagini scelte non sono leggibili.' : '');
+      paint();
+      if (r.salvate && onApply) onApply('photos');
+    });
+  });
+
+  wrap.appendChild(strip);
+  wrap.appendChild(add);
+  wrap.appendChild(esito);
+  paint();
+  return wrap;
 }
 
 function control(f, onApply){

@@ -1,42 +1,172 @@
 import { sendViaBridge, bridgeConfigured } from './bridge.js';
+import { settings, save } from './config.js';
 
-// Modello dei dispositivi di casa.
+// Stanze, dispositivi e scene di casa.
 //
-// Per ora ogni comando finisce in un driver finto che cambia solo lo stato
-// locale, cosi l interfaccia e provabile subito sul tablet. In fase due
-// sostituiremo il driver con le chiamate vere: Tuya per luci e citofono,
-// Spotify per i Nest, e un piccolo ponte in rete locale per il Broadlink
-// RM4C mini e per la presa D-Link, che parlano solo dentro casa.
+// Sono tutti modificabili dal pannello, nella scheda Casa con il tasto
+// Modifica. La disposizione viaggia dentro le impostazioni, quindi arriva
+// da sola anche sull altro tablet e finisce nelle copie di sicurezza.
+//
+// Ogni dispositivo ha anche il nome con cui compare in Google Home: e
+// quello che servira per comandarlo davvero, attraverso Google.
 
-export var devices = [
-  { id:'luce-soggiorno', name:'Soggiorno', room:'casa', kind:'light',  via:'tuya',     glyph:'\u25CF', on:false },
-  { id:'luce-cucina',    name:'Cucina',    room:'casa', kind:'light',  via:'tuya',     glyph:'\u25CF', on:false },
-  { id:'luce-camera',    name:'Camera',    room:'casa', kind:'light',  via:'tuya',     glyph:'\u25CF', on:false },
-  { id:'luce-corridoio', name:'Corridoio', room:'casa', kind:'light',  via:'tuya',     glyph:'\u25CF', on:false },
-  { id:'tv',             name:'TV',        room:'casa', kind:'ir',     via:'broadlink',glyph:'\u25A3', on:false },
-  { id:'presa',          name:'Presa',     room:'casa', kind:'switch', via:'dlink',    glyph:'\u25C9', on:false },
-  { id:'citofono',       name:'Citofono',  room:'casa', kind:'intercom',via:'tuya',    glyph:'\u2302', on:false },
+// ---------- tipi ----------
 
-  { id:'clima-salotto',  name:'Salotto',   room:'clima',kind:'ir',     via:'broadlink',glyph:'\u2744', on:false },
-  { id:'clima-camera',   name:'Camera',    room:'clima',kind:'ir',     via:'broadlink',glyph:'\u2744', on:false }
-];
+export var TYPES = {
+  luce:         { label: 'Luce',           kind: 'light',    glyph: '●' },
+  presa:        { label: 'Presa',          kind: 'switch',   glyph: '◉' },
+  tv:           { label: 'Televisore',     kind: 'ir',       glyph: '▣' },
+  clima:        { label: 'Climatizzatore', kind: 'ir',       glyph: '❄' },
+  citofono:     { label: 'Citofono',       kind: 'intercom', glyph: '⌂' },
+  altoparlante: { label: 'Altoparlante',   kind: 'speaker',  glyph: '♪' },
+  altro:        { label: 'Altro',          kind: 'switch',   glyph: '◇' }
+};
 
-export var scenes = [
-  { id:'buonanotte', name:'Buonanotte', room:'casa',   glyph:'\u25D0' },
-  { id:'cena',       name:'Cena',       room:'casa',   glyph:'\u25D1' },
-  { id:'relax',      name:'Relax',      room:'musica', glyph:'\u266B' },
-  { id:'silenzio',   name:'Silenzio',   room:'musica', glyph:'\u25A0' }
-];
+export var VIAS = {
+  google:    'Google Home',
+  broadlink: 'Broadlink diretto, serve il ponte',
+  dlink:     'Presa D-Link diretta, serve il ponte'
+};
 
-export var speakers = [
-  { id:'nest-cucina',   name:'Cucina',   room:'musica', glyph:'\u266A', on:false },
-  { id:'nest-soggiorno',name:'Soggiorno',room:'musica', glyph:'\u266A', on:false },
-  { id:'nest-camera',   name:'Camera',   room:'musica', glyph:'\u266A', on:false },
-  { id:'nest-bagno',    name:'Bagno',    room:'musica', glyph:'\u266A', on:false }
-];
+// ---------- disposizione di esempio ----------
+//
+// Serve solo al primo avvio. Il pannello la segnala come esempio finche
+// non la modifichi.
 
-// Chi vuole sapere delle accensioni fatte da una persona si aggancia qui.
-// Serve a tenere devices.js indipendente dal resto.
+function exampleLayout(){
+  return {
+    example: true,
+    rooms: [
+      { id: 'soggiorno', name: 'Soggiorno' },
+      { id: 'cucina',    name: 'Cucina' },
+      { id: 'camera',    name: 'Camera' },
+      { id: 'corridoio', name: 'Corridoio' },
+      { id: 'bagno',     name: 'Bagno' }
+    ],
+    devices: [
+      { id: 'luce-soggiorno', name: 'Luce',     room: 'soggiorno', type: 'luce',         google: 'luce soggiorno', via: 'google' },
+      { id: 'tv',             name: 'TV',       room: 'soggiorno', type: 'tv',           google: 'televisore',     via: 'google' },
+      { id: 'clima-salotto',  name: 'Clima',    room: 'soggiorno', type: 'clima',        google: 'clima soggiorno',via: 'google' },
+      { id: 'presa',          name: 'Presa',    room: 'soggiorno', type: 'presa',        google: 'presa',          via: 'google' },
+      { id: 'nest-soggiorno', name: 'Nest',     room: 'soggiorno', type: 'altoparlante', google: 'soggiorno',      via: 'google' },
+      { id: 'luce-cucina',    name: 'Luce',     room: 'cucina',    type: 'luce',         google: 'luce cucina',    via: 'google' },
+      { id: 'nest-cucina',    name: 'Nest',     room: 'cucina',    type: 'altoparlante', google: 'cucina',         via: 'google' },
+      { id: 'luce-camera',    name: 'Luce',     room: 'camera',    type: 'luce',         google: 'luce camera',    via: 'google' },
+      { id: 'clima-camera',   name: 'Clima',    room: 'camera',    type: 'clima',        google: 'clima camera',   via: 'google' },
+      { id: 'nest-camera',    name: 'Nest',     room: 'camera',    type: 'altoparlante', google: 'camera',         via: 'google' },
+      { id: 'luce-corridoio', name: 'Luce',     room: 'corridoio', type: 'luce',         google: 'luce corridoio', via: 'google' },
+      { id: 'citofono',       name: 'Citofono', room: 'corridoio', type: 'citofono',     google: 'citofono',       via: 'google' },
+      { id: 'nest-bagno',     name: 'Nest',     room: 'bagno',     type: 'altoparlante', google: 'bagno',          via: 'google' }
+    ],
+    scenes: [
+      { id: 'buonanotte', name: 'Buonanotte', actions: [] , allLights: 'off' },
+      { id: 'cena',       name: 'Cena',       actions: [
+          { device: 'luce-cucina', on: true }, { device: 'luce-soggiorno', on: true } ] },
+      { id: 'silenzio',   name: 'Silenzio',   actions: [], allSpeakers: 'off' }
+    ]
+  };
+}
+
+// ---------- stato ----------
+
+// Gli elenchi vengono svuotati e riempiti sul posto, mai sostituiti: gli
+// altri moduli li importano e devono sempre vedere quelli aggiornati.
+export var rooms = [];
+export var devices = [];
+export var speakers = [];
+export var scenes = [];
+
+var layout = null;
+
+export function currentLayout(){
+  return JSON.parse(JSON.stringify(layout));
+}
+
+export function isExampleLayout(){
+  return !!(layout && layout.example);
+}
+
+function readLayout(){
+  try {
+    var saved = settings.homeLayout ? JSON.parse(settings.homeLayout) : null;
+    if (saved && saved.rooms && saved.devices) return saved;
+  } catch (e) {}
+  return exampleLayout();
+}
+
+// Rimette in memoria la disposizione, conservando acceso o spento dei
+// dispositivi che esistevano gia.
+export function applyLayout(next){
+  var prima = {};
+  var tutti = devices.concat(speakers);
+  for (var i = 0; i < tutti.length; i++) prima[tutti[i].id] = tutti[i].on;
+
+  layout = next;
+
+  rooms.length = 0;
+  for (var r = 0; r < layout.rooms.length; r++) rooms.push(layout.rooms[r]);
+
+  devices.length = 0;
+  speakers.length = 0;
+  for (var d = 0; d < layout.devices.length; d++) {
+    var src = layout.devices[d];
+    var tipo = TYPES[src.type] || TYPES.altro;
+    var dev = {
+      id: src.id,
+      name: src.name,
+      room: src.room,
+      type: src.type,
+      kind: tipo.kind,
+      glyph: tipo.glyph,
+      via: src.via || 'google',
+      google: src.google || '',
+      on: !!prima[src.id]
+    };
+    if (tipo.kind === 'speaker') speakers.push(dev);
+    else devices.push(dev);
+  }
+
+  scenes.length = 0;
+  for (var s = 0; s < (layout.scenes || []).length; s++) {
+    var sc = layout.scenes[s];
+    scenes.push({ id: sc.id, name: sc.name, glyph: '◐', actions: sc.actions || [],
+                  allLights: sc.allLights || null, allSpeakers: sc.allSpeakers || null });
+  }
+}
+
+export function reloadLayout(){
+  applyLayout(readLayout());
+}
+
+// Salva una disposizione modificata dal pannello. Chi chiama deve poi
+// avvisare l allineamento, che vive in un altro modulo.
+export function saveLayout(next){
+  var pulita = JSON.parse(JSON.stringify(next));
+  delete pulita.example;
+  settings.homeLayout = JSON.stringify(pulita);
+  save();
+  applyLayout(pulita);
+}
+
+export function resetToExample(){
+  settings.homeLayout = '';
+  save();
+  applyLayout(exampleLayout());
+}
+
+export function roomName(id){
+  for (var i = 0; i < rooms.length; i++) if (rooms[i].id === id) return rooms[i].name;
+  return '';
+}
+
+export function newId(prefix){
+  return (prefix || 'x') + Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36);
+}
+
+reloadLayout();
+
+// ---------- comandi ----------
+
 var toggleWatchers = [];
 
 export function onToggle(fn){ toggleWatchers.push(fn); }
@@ -56,41 +186,71 @@ export function toggle(id, byPerson){
   if (byPerson !== false) {
     for (var w = 0; w < toggleWatchers.length; w++) toggleWatchers[w](id, d.on);
   }
-  send(d.via, d.id, d.on ? 'accendi' : 'spegni');
+  send(d, d.on ? 'accendi' : 'spegni');
   return d;
 }
 
-export function runScene(id){
-  send('scena', id, 'esegui');
+export function setDevice(id, on, byPerson){
+  var d = findDevice(id);
+  if (!d || d.on === !!on) return d;
+  return toggle(id, byPerson);
 }
 
-// Broadlink e presa D-Link vivono solo in rete locale: se il ponte non
-// c'e, il comando non puo partire e va detto, non fatto finta.
-var LOCAL_ONLY_VIA = { broadlink:1, dlink:1 };
+export function runScene(id){
+  var sc = null;
+  for (var i = 0; i < scenes.length; i++) if (scenes[i].id === id) sc = scenes[i];
+  if (!sc) return;
 
-function send(via, id, action){
+  if (sc.allLights) {
+    for (var l = 0; l < devices.length; l++) {
+      if (devices[l].kind === 'light') setDevice(devices[l].id, sc.allLights === 'on', false);
+    }
+  }
+  if (sc.allSpeakers) {
+    for (var p = 0; p < speakers.length; p++) setDevice(speakers[p].id, sc.allSpeakers === 'on', false);
+  }
+  for (var a = 0; a < sc.actions.length; a++) {
+    setDevice(sc.actions[a].device, sc.actions[a].on, false);
+  }
+}
+
+// Broadlink e presa D-Link collegati direttamente vivono solo in rete
+// locale: senza il ponte il comando non puo partire, e va detto.
+var LOCAL_ONLY_VIA = { broadlink: 1, dlink: 1 };
+
+function send(dev, action){
   var stamp = new Date().toLocaleTimeString('it-IT');
+  var via = dev.via;
   var viaBridge = !!LOCAL_ONLY_VIA[via];
 
-  if (viaBridge && !bridgeConfigured()) {
-    log.push(stamp + '  ' + via + '  ' + id + '  ' + action + '  non inviato, manca il ponte');
+  function note(extra){
+    log.push(stamp + '  ' + via + '  ' + dev.id + '  ' + action + (extra ? '  ' + extra : ''));
     if (log.length > 40) log.shift();
-    return;
   }
 
+  if (viaBridge && !bridgeConfigured()) { note('non inviato, manca il ponte'); return; }
   if (viaBridge) {
-    sendViaBridge(via, id, action).then(function(ok){
-      log.push(stamp + '  ' + via + '  ' + id + '  ' + action + (ok ? '  inviato' : '  ponte non raggiungibile'));
-      if (log.length > 40) log.shift();
-    });
+    sendViaBridge(via, dev.id, action).then(function(ok){ note(ok ? 'inviato' : 'ponte non raggiungibile'); });
     return;
   }
-
-  log.push(stamp + '  ' + via + '  ' + id + '  ' + action);
-  if (log.length > 40) log.shift();
+  note(LIVE ? '' : 'non inviato, Google Home non ancora collegato');
 }
 
-// Vero quando il dispositivo non e raggiungibile senza ponte.
+// Finche non c e un collegamento vero con Google Home, i comandi non
+// escono dal pannello. Il pannello lo deve dire invece di mostrare caselle
+// che si accendono solo sullo schermo.
+var LIVE = false;
+
+export function setLive(value){ LIVE = !!value; }
+export function isLive(){ return LIVE; }
+
+export function notConnected(device){
+  if (!device) return true;
+  if (needsBridge(device)) return true;
+  if (LOCAL_ONLY_VIA[device.via]) return false;
+  return !LIVE;
+}
+
 export function needsBridge(device){
   return !!(device && LOCAL_ONLY_VIA[device.via] && !bridgeConfigured());
 }

@@ -91,7 +91,22 @@ export function receive(messages){
   return fresh.length;
 }
 
+var INBOX_KEY = 'domapp.intercom.inbox.v1';
+
+// Gli ultimi messaggi ricevuti, dal piu recente. Servono al riquadro della
+// schermata principale, cosi chi passa dopo li legge ancora.
+export function inbox(){
+  try { return JSON.parse(localStorage.getItem(INBOX_KEY) || '[]'); } catch (e) { return []; }
+}
+
+function keepInInbox(list){
+  var box = list.slice().reverse().concat(inbox());
+  if (box.length > 10) box = box.slice(0, 10);
+  try { localStorage.setItem(INBOX_KEY, JSON.stringify(box)); } catch (e) {}
+}
+
 function announce(list){
+  keepInInbox(list);
   if (onArrive) onArrive(list);
 
   if (!settings.intercomSpeak) return;

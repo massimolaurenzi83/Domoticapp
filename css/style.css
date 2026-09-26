@@ -96,7 +96,7 @@ html,body{
   background:var(--card);border:0;color:var(--fg-dim);
   width:46px;height:46px;border-radius:50%;font-size:20px;flex:none;
 }
-.control-body{flex:1;overflow:hidden;}
+.control-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .tile-grid{
   display:grid;grid-template-columns:repeat(4,1fr);
   grid-auto-rows:1fr;gap:14px;height:100%;
@@ -185,7 +185,7 @@ html,body{
 .vb-reply{font-size:32px;font-weight:300;margin-top:8px;}
 
 #priv-flag{
-  position:absolute;top:14px;right:16px;z-index:18;
+  position:absolute;bottom:14px;left:16px;z-index:18;
   font-size:12px;color:#9aa0a8;background:#14171b;
   padding:5px 12px;border-radius:999px;pointer-events:none;
 }
@@ -256,3 +256,32 @@ html,body{
 .setup-buttons{display:flex;gap:12px;margin-top:30px;align-items:center;}
 .setup-buttons .btn{font-size:18px;padding:17px 30px;}
 .btn-go{background:#1d3a55;margin-left:auto;}
+
+/* ---------- scheda Casa per stanze ---------- */
+.home-top{display:flex;align-items:center;gap:14px;margin-bottom:6px;}
+.home-note{flex:1;font-size:14px;color:var(--fg-dim);}
+.room-section{margin-top:16px;}
+.room-title{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--fg-faint);margin:0 0 8px 2px;}
+.room-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}
+.room-grid .tile{min-height:116px;}
+
+/* ---------- riquadri della schermata principale ---------- */
+.ambient-side{max-height:86vh;overflow-y:auto;}
+.widget{background:var(--card);border-radius:var(--radius);padding:16px 18px;}
+.widget-title{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--fg-faint);margin-bottom:6px;}
+.widget-line{font-size:16px;line-height:1.35;}
+.widget-sub{font-size:13px;color:var(--fg-dim);margin-bottom:6px;}
+.widget-big{font-size:26px;font-weight:300;}
+
+/* ---------- modifica di stanze e dispositivi ---------- */
+.ed-inner{width:760px;max-width:94%;}
+.ed-section{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin:24px 0 8px;}
+.ed-row{display:flex;gap:10px;align-items:center;margin-bottom:8px;}
+.ed-input,.ed-select{
+  flex:1;min-width:0;background:var(--card-hi);border:1px solid var(--line);color:var(--fg);
+  font-family:inherit;font-size:16px;padding:11px 12px;border-radius:10px;width:100%;
+}
+.ed-device{background:#1b1f25;border-radius:12px;padding:12px;margin-bottom:10px;}
+.ed-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;}
+.ed-field span{display:block;font-size:12px;color:var(--fg-dim);margin:2px 0 4px;}
+.ed-msg{color:#f0b429;font-size:15px;margin-top:14px;min-height:20px;}

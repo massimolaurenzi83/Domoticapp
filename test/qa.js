@@ -29,6 +29,8 @@ function prova(area, cosa, condizione, dettaglio) {
 
 const cfg = await import('/js/config.js');
 const dev = await import('/js/devices.js');
+dev.resetToExample();
+dev.setLive(false);
 const intents = await import('/js/intents.js');
 const rem = await import('/js/reminders.js');
 const shop = await import('/js/shopping.js');
@@ -67,14 +69,25 @@ prova('Dispositivi', 'accendere e spegnere cambia stato',
            dev.toggle('luce-cucina'); const dopo = l.on;
            dev.toggle('luce-cucina'); return prima !== dopo; })());
 
-prova('Dispositivi', 'Broadlink e presa sono segnalati come irraggiungibili senza ponte',
-  dev.needsBridge(dev.findDevice('tv')) && dev.needsBridge(dev.findDevice('presa')) &&
-  !dev.needsBridge(dev.findDevice('luce-cucina')));
+// Un dispositivo collegato direttamente, senza passare da Google Home,
+// ha bisogno del ponte: lo simulo sul televisore di esempio.
+const tvProva = dev.findDevice('tv');
+tvProva.via = 'broadlink';
+prova('Dispositivi', 'un dispositivo diretto e segnalato come irraggiungibile senza ponte',
+  dev.needsBridge(tvProva) && !dev.needsBridge(dev.findDevice('luce-cucina')));
 
 prova('Dispositivi', 'i comandi senza ponte non fingono di partire',
   (() => { dev.toggle('tv'); const log = dev.commandLog();
            dev.toggle('tv'); return log.indexOf('manca il ponte') !== -1; })(),
   dev.commandLog().split('\n')[0]);
+tvProva.via = 'google';
+
+prova('Dispositivi', 'senza Google Home collegato i comandi dicono di non essere partiti',
+  (() => { dev.toggle('luce-cucina'); const log = dev.commandLog(); dev.toggle('luce-cucina');
+           return log.indexOf('non ancora collegato') !== -1; })());
+
+prova('Dispositivi', 'senza collegamento le caselle non fingono di funzionare',
+  dev.notConnected(dev.findDevice('luce-cucina')) === true);
 
 // ---------- 3. comandi vocali ----------
 const frasi = [
@@ -83,16 +96,27 @@ const frasi = [
   ['metti spotify in camera', r => r && r.tab === 'musica'],
   ['che tempo fa', r => r && r.screen === 'ambient'],
   ['apri il citofono', r => r && r.device === 'citofono'],
-  ['buonanotte', r => r && r.reply.indexOf('Buonanotte') === 0],
+  ['buonanotte', r => r && r.reply.toLowerCase().indexOf('buonanotte') !== -1],
   ['ricordami di comprare il pane domani alle 8', r => r && r.reminder],
   ['aggiungi il latte alla lista della spesa', r => r && r.tab === 'spesa'],
   ['timer di dieci minuti', r => r && r.reply.indexOf('Timer') === 0],
   ['balla la samba', r => r === null]
 ];
+// Le frasi si provano come se Google Home fosse collegato, per verificare
+// che il pannello capisca cosa fare.
+dev.setLive(true);
 let capite = 0;
-frasi.forEach(([f, check]) => { if (check(intents.runCommand(f))) capite++; });
+const mancate = [];
+frasi.forEach(([f, check]) => { if (check(intents.runCommand(f))) capite++; else mancate.push(f); });
+dev.setLive(false);
 prova('Voce', 'le frasi di prova vengono interpretate correttamente',
-  capite === frasi.length, capite + ' su ' + frasi.length);
+  capite === frasi.length, capite + ' su ' + frasi.length + (mancate.length ? ', non capite: ' + mancate.join(' / ') : ''));
+
+prova('Voce', 'senza collegamento la voce non finge di aver acceso',
+  (() => { const r = intents.runCommand('accendi la luce in cucina'); return r && r.offline === true; })());
+
+prova('Voce', 'una frase senza niente da comprare non viene spacciata per aggiunta',
+  intents.runCommand('aggiungi alla lista della spesa').reply.indexOf('Cosa devo') === 0);
 
 // ---------- 4. promemoria ----------
 const pw = rem.parseWhen('ricordami di chiamare il dentista domani alle 15');
@@ -416,6 +440,72 @@ prova('Comando a distanza', 'il telefono puo anche disarmarla',
 const ripetizione = pres.applyRemoteDecision(pres.lastDecision());
 prova('Comando a distanza', 'la nostra stessa decisione di ritorno non fa nulla',
   ripetizione === false);
+
+// ---------- 25. stanze e dispositivi modificabili ----------
+
+const mia = dev.currentLayout();
+mia.rooms.push({ id: 'studio', name: 'Studio' });
+mia.devices.push({ id: 'luce-studio', name: 'Lampada', room: 'studio', type: 'luce', google: 'lampada studio', via: 'google' });
+dev.saveLayout(mia);
+
+prova('Stanze', 'una stanza aggiunta compare fra le stanze',
+  dev.rooms.some(r => r.name === 'Studio') && dev.isExampleLayout() === false);
+
+prova('Stanze', 'la disposizione viene salvata nelle impostazioni, quindi arriva anche sull altro tablet',
+  (cfg.settings.homeLayout || '').indexOf('Studio') !== -1);
+
+dev.setLive(true);
+prova('Stanze', 'la voce riconosce le stanze che hai messo tu',
+  (intents.runCommand('accendi la luce nello studio') || {}).reply === 'Accendo la luce in studio.');
+dev.setLive(false);
+
+dev.resetToExample();
+prova('Stanze', 'si puo tornare alla disposizione di esempio',
+  dev.isExampleLayout() && !dev.rooms.some(r => r.name === 'Studio'));
+
+// ---------- 26. riquadri della schermata principale ----------
+
+const wid = await import('/js/widgets.js');
+cfg.settings.homeWidgets = '';
+prova('Riquadri', 'di fabbrica ci sono meteo, timer, promemoria e spesa',
+  wid.chosenWidgets().join(',') === 'meteo,timer,promemoria,spesa');
+
+wid.setChosenWidgets(['sentinella', 'meteo']);
+wid.renderWidgets();
+const lato = document.querySelector('.ambient-side');
+prova('Riquadri', 'i riquadri scelti compaiono nell ordine scelto',
+  lato.children.length === 2 && lato.children[1].id === 'weather-card' &&
+  lato.children[0].textContent.indexOf('Sentinella') !== -1);
+
+prova('Riquadri', 'il meteo tolto dalla schermata resta nella pagina, cosi l aggiornamento non si rompe',
+  (() => { wid.setChosenWidgets(['sentinella']); wid.renderWidgets();
+           return !!document.getElementById('weather-temp'); })());
+cfg.settings.homeWidgets = '';
+wid.renderWidgets();
+
+// ---------- 27. foto dal tablet ----------
+
+const gal = await import('/js/gallery.js');
+const tela = document.createElement('canvas');
+tela.width = 2400; tela.height = 1600;
+tela.getContext('2d').fillStyle = '#446'; tela.getContext('2d').fillRect(0, 0, 2400, 1600);
+const blobProva = await new Promise(r => tela.toBlob(r, 'image/jpeg', 0.9));
+const fileProva = new File([blobProva], 'prova.jpg', { type: 'image/jpeg' });
+const esitoFoto = await gal.addFiles([fileProva], 'photo');
+const fotoSalvate = await gal.list('photo');
+const fotoNuova = fotoSalvate[fotoSalvate.length - 1];
+const misura = await new Promise(r => { const im = new Image(); im.onload = () => r(Math.max(im.width, im.height)); im.src = gal.urlFor(fotoNuova); });
+
+prova('Foto', 'una foto scelta dalla galleria viene salvata dentro il tablet', esitoFoto.salvate === 1);
+prova('Foto', 'le foto grandi vengono ridotte alla misura dello schermo', misura <= 1920, 'lato lungo ' + misura + ' pixel');
+await gal.remove(fotoNuova.id);
+prova('Foto', 'si possono togliere', (await gal.list('photo')).every(x => x.id !== fotoNuova.id));
+
+// ---------- 28. voce e batteria ----------
+
+const voce = await import('/js/voice.js');
+prova('Voce', 'la diagnostica dice se manca la voce italiana', voce.speechStatus().indexOf('Risposta parlata') === 0,
+  voce.speechStatus());
 
 // ---------- esito ----------
 return {

@@ -13,11 +13,14 @@ import { initScreen, applyScheduledBrightness, screenDiagnostics } from './scree
 import { startPresence, stopPresence, presenceDiagnostics, armSentinel, disarmSentinel, isArmed, armedSince } from './presence.js';
 import { fetchWeather, weatherDiagnostics } from './weather.js';
 import { loadPhotos, nextPhoto, photoCount } from './photos.js';
-import { buildSettings, renderTab, timeString, dateString, agendaHooks, currentProfile } from './ui.js';
+import { buildSettings, renderTab, timeString, dateString, agendaHooks, currentProfile, homeHooks } from './ui.js';
 import { parseWhen, addReminder, describeWhen } from './reminders.js';
 import { pinOk, pinRequired } from './profiles.js';
 import { securityHooks } from './security-view.js';
 import { setupDone, startSetup, resetSetup } from './setup.js';
+import { renderWidgets } from './widgets.js';
+import { openHomeEditor } from './home-editor.js';
+import { reloadLayout } from './devices.js';
 import { startBackups, saveLocalCopy, pushToService, downloadFile, readFile,
          restore, backupDiagnostics, pullFromService } from './backup.js';
 import { bridgeDiagnostics, checkBridge } from './bridge.js';
@@ -30,7 +33,7 @@ import { setSyncConfig, startSync, syncConfigured, syncStatus, touch } from './s
 import { setIntercomHandler } from './intercom.js';
 import { commandLog, onToggle } from './devices.js';
 import { loadWallpapers, applyWallpaper } from './wallpaper.js';
-import { startVoice, stopVoice, say, voiceAvailable, voiceDiagnostics, captureNext } from './voice.js';
+import { startVoice, stopVoice, say, voiceAvailable, voiceDiagnostics, captureNext, primeSpeech, speechStatus } from './voice.js';
 import { runCommand } from './intents.js';
 
 var screens = {
@@ -155,6 +158,8 @@ function openSettings(){
     touch(id);
     if (id === 'syncUrl' || id === 'syncToken') setSyncConfig(settings.syncUrl, settings.syncToken);
     if (id === 'photoSeconds') { stopPhotoLoop(); if (currentScreen === 'photos') startPhotoLoop(); }
+    if (id === 'homeWidgets') renderWidgets();
+    if (id === 'photos') loadPhotos().then(function(){ if (!isAwake()) show(idleScreen()); });
     if (id === 'lat' || id === 'lon' || id === 'placeName') refreshWeather();
     if (id === 'voiceEnabled') { stopVoice(); setupVoice(); }
   });
@@ -173,6 +178,8 @@ function updateDiagnostics(){
     screenDiagnostics(),
     presenceDiagnostics(),
     voiceDiagnostics(),
+    speechStatus(),
+    batteryStatus(),
     weatherDiagnostics() + (lastWeatherError ? ' | ultimo errore: ' + lastWeatherError : ''),
     bridgeDiagnostics(),
     backupDiagnostics(),
@@ -242,6 +249,9 @@ function boot(){
     else showVoiceBar('', 'Codice errato.');
   });
   document.getElementById('btn-close-settings').addEventListener('click', closeSettings);
+  document.getElementById('btn-open-diag').addEventListener('click', function(){
+    window.location.href = 'diagnostica/';
+  });
   document.getElementById('btn-redo-setup').addEventListener('click', function(){
     closeSettings();
     resetSetup();
@@ -295,6 +305,25 @@ function boot(){
 
   onToggle(noteHabit);
 
+  unlockOnFirstTouch();
+
+  // Modifica di stanze e dispositivi: protetta dal codice, come le impostazioni.
+  homeHooks.onEdit = function(){
+    if (pinRequired()) {
+      var entered = window.prompt('Codice impostazioni');
+      if (entered === null) return;
+      if (!pinOk(entered)) { showVoiceBar('', 'Codice errato.'); return; }
+    }
+    openHomeEditor(function(){
+      touch('homeLayout');
+      renderCurrentTab();
+    });
+  };
+
+  renderWidgets();
+  setInterval(renderWidgets, 30000);
+  watchBattery();
+
   startBackups();
   setupBackupButtons();
 
@@ -326,9 +355,11 @@ function boot(){
 
   setSyncConfig(settings.syncUrl, settings.syncToken);
   startSync(function(){
+    reloadLayout();
     renderCurrentTab();
     applyWallpaper();
     refreshWeather();
+    renderWidgets();
 
     // La sentinella puo essere stata armata dal telefono: qui il pannello
     // se ne accorge e si adegua.
@@ -348,12 +379,91 @@ function micHint(text){
   if (!el) {
     el = document.createElement('div');
     el.id = 'mic-hint';
-    el.style.cssText = 'position:absolute;top:12px;right:16px;z-index:18;font-size:13px;' +
+    // In basso a destra: in alto coprirebbe i tasti della plancia.
+    el.style.cssText = 'position:absolute;bottom:14px;right:16px;z-index:18;font-size:13px;' +
       'color:#9aa0a8;background:#14171b;padding:6px 12px;border-radius:999px;pointer-events:none;';
     document.body.appendChild(el);
   }
   el.textContent = text;
   el.hidden = !text;
+}
+
+// Al primo tocco dopo l apertura sblocca tutto cio che Chrome su Android
+// concede solo dopo un gesto: la voce che risponde, e con lei interfono e
+// timer. Il microfono ha un suo meccanismo, dentro voice.js.
+function unlockOnFirstTouch(){
+  function once(){
+    document.removeEventListener('touchstart', once, true);
+    document.removeEventListener('click', once, true);
+    primeSpeech();
+  }
+  document.addEventListener('touchstart', once, true);
+  document.addEventListener('click', once, true);
+}
+
+// ---------- batteria ----------
+//
+// Un tablet del 2014 con la batteria stanca puo spegnersi anche in carica,
+// se il caricatore non ce la fa a stare dietro a schermo, fotocamera e
+// microfono sempre accesi. Il pannello lo tiene d occhio e lo dice prima
+// che succeda.
+
+var battery = null;
+var chargingSamples = [];
+
+function watchBattery(){
+  if (!navigator.getBattery) return;
+  navigator.getBattery().then(function(b){
+    battery = b;
+    function check(){
+      if (b.charging) {
+        chargingSamples.push({ at: Date.now(), level: b.level });
+        if (chargingSamples.length > 40) chargingSamples.shift();
+      } else {
+        chargingSamples = [];
+      }
+      paintBattery();
+    }
+    b.addEventListener('levelchange', check);
+    b.addEventListener('chargingchange', check);
+    check();
+    setInterval(check, 5 * 60000);
+  }).catch(function(){});
+}
+
+// Vero quando e in carica ma la batteria scende lo stesso: il caricatore
+// e troppo debole per questo tablet.
+function chargerTooWeak(){
+  if (chargingSamples.length < 3) return false;
+  var primo = chargingSamples[0];
+  var ultimo = chargingSamples[chargingSamples.length - 1];
+  return (ultimo.at - primo.at) > 20 * 60000 && (primo.level - ultimo.level) >= 0.04;
+}
+
+function paintBattery(){
+  if (!battery) return;
+  var pct = Math.round(battery.level * 100);
+  var testo = '';
+  if (!battery.charging && pct <= 25) testo = 'Batteria al ' + pct + '%, collega il caricatore';
+  else if (chargerTooWeak()) testo = 'Il caricatore non basta: batteria in calo anche in carica';
+
+  var el = document.getElementById('battery-hint');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'battery-hint';
+    el.style.cssText = 'position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:18;' +
+      'font-size:13px;color:#f0b429;background:#2a220c;padding:6px 14px;border-radius:999px;pointer-events:none;';
+    document.body.appendChild(el);
+  }
+  el.textContent = testo;
+  el.hidden = !testo;
+}
+
+function batteryStatus(){
+  if (!battery) return 'Batteria: non misurabile';
+  return 'Batteria: ' + Math.round(battery.level * 100) + '%, ' +
+    (battery.charging ? 'in carica' : 'non in carica') +
+    (chargerTooWeak() ? ', il caricatore non basta' : '');
 }
 
 function setupVoice(){

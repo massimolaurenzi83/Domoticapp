@@ -8,7 +8,7 @@
 // molto meno brusco di un allarme.
 
 import { settings } from './config.js';
-import { findDevice, toggle } from './devices.js';
+import { findDevice, toggle, devices, speakers, rooms } from './devices.js';
 
 var KEY = 'domapp.alarms.v1';
 
@@ -33,13 +33,29 @@ export function addAlarm(time, days){
     id: 'al' + Date.now() + '-' + Math.floor(Math.random() * 10000),
     time: time || '07:00',
     days: days || [1, 2, 3, 4, 5],
-    light: 'luce-camera',
-    speaker: 'nest-camera',
+    light: bedroomDevice(devices, 'light'),
+    speaker: bedroomDevice(speakers, 'speaker'),
     enabled: true
   });
   list.sort(function(a, b){ return a.time < b.time ? -1 : 1; });
   persist(list);
   return list;
+}
+
+// Sceglie la luce o l altoparlante della camera da letto, se esiste una
+// stanza che si chiama camera. Altrimenti il primo disponibile.
+function bedroomDevice(list, kind){
+  var camera = null;
+  for (var r = 0; r < rooms.length; r++) {
+    if (/camera|letto/i.test(rooms[r].name)) { camera = rooms[r].id; break; }
+  }
+  var primo = null;
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].kind !== kind) continue;
+    if (!primo) primo = list[i].id;
+    if (camera && list[i].room === camera) return list[i].id;
+  }
+  return primo;
 }
 
 export function updateAlarm(id, patch){

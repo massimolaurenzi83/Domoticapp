@@ -4,6 +4,13 @@
 var KEY = 'domapp.settings.v1';
 
 export var SCHEMA = [
+  { id:'homeLayout', type:'hidden', def:'', group:'Nascosto', label:'Disposizione di casa' },
+  { id:'homeWidgets', type:'widgets', def:'', group:'Schermata principale',
+    label:'Riquadri accanto all orologio',
+    hint:'Accendi quelli che vuoi vedere e mettili nell ordine che preferisci' },
+  { id:'photosManage', type:'photos', def:'', group:'Cornice',
+    label:'Le tue foto',
+    hint:'Aggiungile dalla galleria del tablet. Restano su questo tablet' },
   { id:'photosEnabled', type:'bool', def:true, group:'Cornice',
     label:'Cornice fotografica',
     hint:'Se spenta, a riposo resta sempre la stazione meteo' },
