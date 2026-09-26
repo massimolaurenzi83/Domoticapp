@@ -76,7 +76,7 @@ export function runCommand(text){
   }
 
   if (has(text, ['meteo', 'che tempo', 'tempo fa', 'temperatura', 'previsioni'])) {
-    return { reply: 'Ecco il meteo.', screen: 'ambient' };
+    return { reply: 'Ecco il meteo.', screen: 'ambient', weather: true };
   }
 
   if (has(text, ['citofono', 'portone', 'apri il cancello', 'apri giu'])) {

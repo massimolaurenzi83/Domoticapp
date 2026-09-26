@@ -118,8 +118,24 @@ function tick(){
 
 var lastWeatherError = '';
 
+var lastWeather = null;
+
+// Trasforma il meteo in una frase da dire ad alta voce, con i numeri
+// scritti come si pronunciano: la sintesi vocale legge male il simbolo dei
+// gradi e le barre.
+function weatherSentence(w){
+  if (!w) return 'Non ho ancora il meteo, riprova fra poco.';
+  var frase = 'A ' + (settings.placeName || 'casa') + ' ci sono ' + w.temp +
+              (w.temp === 1 || w.temp === -1 ? ' grado' : ' gradi') + ', ' + w.desc + '.';
+  if (w.min !== null && w.max !== null) {
+    frase += ' Oggi minima ' + w.min + ' e massima ' + w.max + '.';
+  }
+  return frase;
+}
+
 function refreshWeather(){
   fetchWeather().then(function(w){
+    lastWeather = w;
     document.getElementById('weather-temp').textContent = w.temp + '\u00B0';
     var line = w.desc;
     if (w.min !== null && w.max !== null) line += '  ' + w.min + '\u00B0 / ' + w.max + '\u00B0';
@@ -354,6 +370,7 @@ function setupVoice(){
       if (result.device === 'citofono') document.getElementById('doorbell').hidden = false;
 
       if (result.screen === 'control') renderCurrentTab();
+      if (result.weather) result.reply = weatherSentence(lastWeather);
       showVoiceBar(rest, result.reply);
       if (settings.voiceReply) say(result.reply);
     }
