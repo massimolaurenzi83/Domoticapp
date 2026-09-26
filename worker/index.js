@@ -117,6 +117,40 @@ export default {
       return json(JSON.parse((await env.CASA.get('alarms')) || '[]'));
     }
 
+    // ---------- meteo di rimbalzo ----------
+
+    // Alcune reti domestiche bloccano i server dei servizi meteo, e certi
+    // tablet vecchi non riconoscono i loro certificati. Il servizio invece
+    // li raggiunge senza problemi: qui fa da tramite e restituisce i dati
+    // gia pronti. Per il tablet diventa una chiamata a un solo indirizzo,
+    // lo stesso che usa per tutto il resto.
+    if (url.pathname === '/weather') {
+      var lat = url.searchParams.get('lat') || '41.9';
+      var lon = url.searchParams.get('lon') || '12.5';
+
+      var fonti = [
+        'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+          '&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min' +
+          '&forecast_days=1&timezone=auto',
+        'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=' + lat + '&lon=' + lon
+      ];
+
+      for (var f = 0; f < fonti.length; f++) {
+        try {
+          var risposta = await fetch(fonti[f], {
+            headers: { 'User-Agent': 'CasaPanel/1.0' },
+            cf: { cacheTtl: 600, cacheEverything: true }
+          });
+          if (!risposta.ok) continue;
+          var dati = await risposta.json();
+          return json({ fonte: f === 0 ? 'open-meteo' : 'met.no', dati: dati });
+        } catch (e) {
+          // Passiamo alla prossima fonte.
+        }
+      }
+      return json({ error: 'nessuna fonte raggiungibile' }, 502);
+    }
+
     // ---------- chiavi delle luci ----------
 
     // Le chiavi entrano e non escono piu: nessuna richiesta puo rileggerle.
