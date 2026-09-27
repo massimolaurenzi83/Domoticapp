@@ -566,9 +566,13 @@ function setupVoice(){
   if (!settings.voiceEnabled || !voiceAvailable()) { dot.hidden = true; return; }
 
   var ok = startVoice({
-    onStateChange: function(state){
-      dot.hidden = (state !== 'listening' && state !== 'capturing');
+    onStateChange: function(state, payload){
+      // I risultati parziali e l attesa dopo il nome non spengono la scritta In ascolto.
+      var passeggero = state === 'partial' || state === 'awaiting' || state === 'heard' || state === 'captured';
+      if (!passeggero) dot.hidden = (state !== 'listening' && state !== 'capturing');
       if (state === 'capturing') showVoiceBar('', 'Ti ascolto, detta il promemoria.');
+      if (state === 'awaiting') { beep(1); bumpAwake(); showVoiceBar('', 'Dimmi pure, ti ascolto.', 8000); }
+      if (state === 'partial') showVoiceBar(payload || '…', '…', 8000);
       // Il passaggio a fermo arriva subito dopo un rifiuto: non deve
       // cancellare l avviso che spiega cosa e successo.
       if (state !== 'idle') {

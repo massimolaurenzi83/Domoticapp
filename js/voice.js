@@ -78,15 +78,18 @@ function build(R){
   rec = new R();
   rec.lang = 'it-IT';
   rec.continuous = true;
-  rec.interimResults = false;
+  // I risultati parziali servono a mostrare subito cosa si sta sentendo:
+  // prima lo schermo restava muto finche non si finiva di parlare.
+  rec.interimResults = true;
   rec.maxAlternatives = 1;
 
   rec.onstart = function(){ status = 'in ascolto'; listeningNow = true; triedAfterTouch = false; lastErrorKind = ''; notify('listening'); };
 
   rec.onresult = function(ev){
     for (var i = ev.resultIndex; i < ev.results.length; i++) {
-      if (!ev.results[i].isFinal) continue;
-      handle(String(ev.results[i][0].transcript || '').toLowerCase().trim());
+      var detto = String(ev.results[i][0].transcript || '').toLowerCase().trim();
+      if (!ev.results[i].isFinal) { partial(detto); continue; }
+      handle(detto);
     }
   };
 
@@ -152,9 +155,37 @@ export function captureNext(){
 export function voiceListening(){ return !!(wanted && !waitingTouch); }
 export function cancelCapture(){ captureOnce = false; notify('listening'); }
 
+// Mostra quello che si sta sentendo, solo se e rivolto al pannello.
+var lastPartialAt = 0;
+function partial(text){
+  if (!text || Date.now() - lastPartialAt < 250) return;
+  var name = String(settings.wakeWord || 'ambrogio').toLowerCase().trim();
+  var at = text.indexOf(name);
+  if (at === -1 && Date.now() > followUntil && !captureOnce) return;
+  lastPartialAt = Date.now();
+  notify('partial', at === -1 ? text : text.slice(at + name.length).replace(/^[\s,.:;!?]+/, ''));
+}
+
+// Dopo il solo nome, la frase successiva vale come comando anche senza
+// ripeterlo: chi dice "Ambrogio", si ferma e poi parla, prima veniva
+// ignorato.
+var followUntil = 0;
+
 function handle(text){
   if (!text) return;
   lastHeard = text;
+
+  if (!captureOnce && Date.now() < followUntil) {
+    followUntil = 0;
+    var nomeDetto = String(settings.wakeWord || 'ambrogio').toLowerCase().trim();
+    var dopo = text.indexOf(nomeDetto) === -1 ? text
+      : text.slice(text.indexOf(nomeDetto) + nomeDetto.length).replace(/^[\s,.:;!?]+/, '').trim();
+    if (dopo) {
+      notify('heard', dopo);
+      if (onCommand) onCommand(dopo, text);
+      return;
+    }
+  }
 
   if (captureOnce) {
     captureOnce = false;
@@ -168,7 +199,13 @@ function handle(text){
   if (at === -1) return;
 
   var rest = text.slice(at + name.length).replace(/^[\s,.:;!?]+/, '').trim();
-  notify('heard', rest || name);
+  if (!rest) {
+    // Solo il nome: si resta in ascolto per otto secondi.
+    followUntil = Date.now() + 8000;
+    notify('awaiting');
+    return;
+  }
+  notify('heard', rest);
   if (onCommand) onCommand(rest, text);
 }
 

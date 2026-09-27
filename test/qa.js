@@ -811,6 +811,34 @@ prova('Voce', 'la diagnostica dice se manca la voce italiana', voce.speechStatus
   }
 }
 
+// ---------- 32. spesa a voce ----------
+{
+  const imod = await import('/js/intents.js');
+  const shop = await import('/js/shopping.js');
+  localStorage.removeItem('domapp.shopping.v1');
+  const nomi = () => shop.loadItems().map(i => i.text).join(', ');
+  const r1 = imod.runCommand('aggiungi fagioli deodorante pasta e pane alla lista della spesa');
+  prova('Spesa a voce', 'più cose in una frase, anche senza virgole', nomi() === 'fagioli, deodorante, pasta, pane', nomi());
+  prova('Spesa a voce', 'la risposta elenca cosa ha aggiunto', r1.reply === 'Aggiunti fagioli, deodorante, pasta e pane.', r1.reply);
+  imod.runCommand('metti nella lista della spesa due litri di latte e la carta igienica');
+  prova('Spesa a voce', 'quantità e nomi di due parole restano interi', nomi().includes('due litri di latte') && nomi().includes('carta igienica'), nomi());
+  const r2 = imod.runCommand('aggiungi la pasta alla lista');
+  prova('Spesa a voce', 'una cosa già in lista non si sdoppia', r2.reply === 'pasta c’era già.' && shop.loadItems().filter(i => i.text === 'pasta').length === 1, r2.reply);
+  const r3 = imod.runCommand('rimuovi fagioli dalla lista');
+  prova('Spesa a voce', '"rimuovi fagioli dalla lista" toglie i fagioli', !nomi().includes('fagioli') && r3.reply === 'Tolto fagioli.', r3.reply);
+  const r4 = imod.runCommand('togli il pane e il prosciutto dalla lista della spesa');
+  prova('Spesa a voce', 'si possono togliere più cose, e si dice cosa non c’era', !nomi().includes('pane') && /Non trovo prosciutto/.test(r4.reply), r4.reply);
+  imod.runCommand('ho comprato il deodorante');
+  prova('Spesa a voce', '"ho comprato il deodorante" lo toglie', !nomi().includes('deodorante'), nomi());
+  const r5 = imod.runCommand('cosa c’è nella lista della spesa');
+  prova('Spesa a voce', 'la lista si legge ad alta voce', /^Sulla lista: /.test(r5.reply) && r5.reply.includes('carta igienica'), r5.reply);
+  const r6 = imod.runCommand('svuota la lista della spesa');
+  prova('Spesa a voce', 'la lista si svuota a voce', shop.loadItems().length === 0 && r6.reply === 'Lista della spesa svuotata.', r6.reply);
+  const r7 = imod.runCommand('aggiungi alla lista della spesa');
+  prova('Spesa a voce', 'senza cose da aggiungere chiede cosa', r7.reply === 'Cosa devo aggiungere alla spesa?', r7.reply);
+  localStorage.removeItem('domapp.shopping.v1');
+}
+
 // ---------- pulizia finale ----------
 // I dati inventati dal collaudo non devono restare sul pannello.
 ['domapp.reminders.v1', 'domapp.shopping.v1', 'domapp.timers.v1', 'domapp.alarms.v1',

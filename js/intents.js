@@ -21,7 +21,7 @@ function notYet(cosa, tab){
   return { reply: NOT_YET[cosa], screen: 'control', tab: tab || null, offline: true };
 }
 
-import { addItem, pendingCount } from './shopping.js';
+import { loadItems, addFromVoice, removeFromVoice, clearAll, spokenList } from './shopping.js';
 import { parseTimer, addTimer, spokenDuration, clearAllTimers, activeTimers } from './timers.js';
 
 // Modi comuni di chiamare una stanza con un altro nome. Valgono solo se in
@@ -95,19 +95,10 @@ export function runCommand(text){
     return { reply: 'Timer di ' + spokenDuration(t.seconds) + ' avviato.', screen: 'ambient' };
   }
 
-  if (has(text, ['lista della spesa', 'alla spesa', 'nella lista', 'sulla lista', 'da comprare'])) {
-    if (has(text, ['cosa', 'leggimi', 'quanti', 'mostrami', 'fammi vedere'])) {
-      var n = pendingCount();
-      return {
-        reply: n ? 'Sulla lista ci sono ' + n + (n === 1 ? ' cosa.' : ' cose.') : 'La lista è vuota.',
-        screen: 'control', tab: 'spesa'
-      };
-    }
-    var prima = pendingCount();
-    addItem(raw);
-    // Se dalla frase non si ricava niente da comprare, lo si dice.
-    if (pendingCount() === prima) return { reply: 'Cosa devo aggiungere alla spesa?', screen: 'control', tab: 'spesa' };
-    return { reply: 'Aggiunto alla spesa.', screen: 'control', tab: 'spesa', refresh: true };
+  if (has(text, ['lista della spesa', 'alla spesa', 'nella spesa', 'dalla spesa', 'della spesa',
+                  'nella lista', 'sulla lista', 'alla lista', 'dalla lista', 'da comprare',
+                  'ho comprato', 'abbiamo comprato'])) {
+    return shoppingCommand(text, raw);
   }
 
   if (has(text, ['ricordami', 'promemoria', 'segna', 'annota', 'appunta', 'metti in agenda'])) {
@@ -184,6 +175,39 @@ export function runCommand(text){
 
   if (isLive()) return askGoogle(raw);
   return null;
+}
+
+// Lista della spesa a voce: piu cose in una frase, anche senza virgole;
+// togliere, leggere, svuotare.
+function shoppingCommand(text, raw){
+  function spesa(reply){ return { reply: reply, screen: 'control', tab: 'spesa', refresh: true }; }
+
+  if (has(text, ['svuota', 'svuotare', 'cancella tutto', 'cancella tutta', 'togli tutto', 'elimina tutto',
+                 'cancella la lista', 'azzera'])) {
+    return spesa(clearAll() ? 'Lista della spesa svuotata.' : 'La lista era già vuota.');
+  }
+
+  if (has(text, ['cosa', 'leggimi', 'leggi', 'quanti', 'quante', 'mostrami', 'fammi vedere', 'che c'])) {
+    var nomi = loadItems().filter(function(i){ return !i.done; }).map(function(i){ return i.text; });
+    if (!nomi.length) return spesa('La lista è vuota.');
+    var altre = nomi.length > 12 ? ' e altre ' + (nomi.length - 12) + ' cose' : '';
+    return spesa('Sulla lista: ' + spokenList(nomi.slice(0, 12)) + altre + '.');
+  }
+
+  if (has(text, ['rimuovi', 'togli', 'cancella', 'elimina', 'leva', 'depenna', 'ho comprato',
+                 'abbiamo comprato', 'ho preso', 'abbiamo preso'])) {
+    var r = removeFromVoice(raw);
+    var parti = [];
+    if (r.tolte.length) parti.push((r.tolte.length === 1 ? 'Tolto ' : 'Tolti ') + spokenList(r.tolte) + '.');
+    if (r.mancanti.length) parti.push('Non trovo ' + spokenList(r.mancanti) + ' nella lista.');
+    return spesa(parti.join(' ') || 'Cosa devo togliere dalla lista?');
+  }
+
+  var a = addFromVoice(raw);
+  var detto = [];
+  if (a.aggiunte.length) detto.push((a.aggiunte.length === 1 ? 'Aggiunto ' : 'Aggiunti ') + spokenList(a.aggiunte) + '.');
+  if (a.gia.length) detto.push(spokenList(a.gia) + (a.gia.length === 1 ? ' c’era già.' : ' c’erano già.'));
+  return spesa(detto.join(' ') || 'Cosa devo aggiungere alla spesa?');
 }
 
 // Comandi per Spotify. La risposta si dice subito; il comando lo manda il
