@@ -82,9 +82,11 @@ function barra(){
 
   var comandi = document.createElement('div');
   comandi.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
-  comandi.appendChild(pulsante('⏮', function(){ invia({ azione: 'precedente' }); }));
-  comandi.appendChild(pulsante(st.suona ? '⏸' : '▶', function(){ invia({ azione: st.suona ? 'pausa' : 'play' }); }, true));
-  comandi.appendChild(pulsante('⏭', function(){ invia({ azione: 'successivo' }); }));
+  // Parole invece dei simboli: il tablet vecchio mostra i simboli ⏮ ⏸ ⏭
+  // come quadratini vuoti.
+  comandi.appendChild(pulsante('« Prec.', function(){ invia({ azione: 'precedente' }); }));
+  comandi.appendChild(pulsante(st.suona ? 'Pausa' : 'Play', function(){ invia({ azione: st.suona ? 'pausa' : 'play' }); }, true));
+  comandi.appendChild(pulsante('Succ. »', function(){ invia({ azione: 'successivo' }); }));
   comandi.appendChild(pulsante('Vol −', function(){ volume(-10); }));
   comandi.appendChild(pulsante('Vol +', function(){ volume(10); }));
   bar.appendChild(comandi);
@@ -151,7 +153,7 @@ function riempiPlaylist(grid){
     var b = document.createElement('button');
     b.type = 'button';
     b.className = 'tile tile-scene';
-    b.innerHTML = '<span class="tile-glyph">≡</span>';
+    b.innerHTML = '<span class="tile-glyph">♫</span>';
     var n = document.createElement('div');
     n.className = 'tile-name';
     n.textContent = p.nome;
