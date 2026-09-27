@@ -1,7 +1,7 @@
 // Disegno delle schermate e del pannello impostazioni.
 
 import { SCHEMA, settings, save } from './config.js';
-import { devices, scenes, toggle, runScene, needsBridge, notConnected, isLive } from './devices.js';
+import { devices, scenes, toggle, command, lastCommand, runScene, needsBridge, notConnected, isLive } from './devices.js';
 import { wallpaperList, setWallpaper, loadWallpapers } from './wallpaper.js';
 import { widgetChooser } from './widgets.js';
 import { pickAndAdd, list as galleryList, urlFor, remove as galleryRemove } from './gallery.js';
@@ -267,8 +267,70 @@ function renderAgenda(body, onChange){
   body.appendChild(wrap);
 }
 
+// Come si descrive l ultimo comando dato a un dispositivo.
+function describeLast(d){
+  var r = lastCommand(d.id);
+  if (!r) return 'stato non noto';
+  var q = new Date(r.at);
+  var oggi = new Date().toDateString() === q.toDateString();
+  return (r.on ? 'acceso' : 'spento') + ' dal ' + r.da + (oggi ? ' alle ' + timeString(q) : ' il ' + q.getDate() + '/' + (q.getMonth() + 1));
+}
+
+// Casella di un dispositivo comandabile: due pulsanti chiari invece di un
+// interruttore. Il pannello non sa lo stato vero delle luci, e un
+// interruttore finiva per mostrarle al contrario.
+function deviceTile(item, onChange){
+  var d = item.d;
+  var el = document.createElement('div');
+  el.className = 'tile tile-dev' + (lastCommand(d.id) && d.on ? ' is-on' : '');
+
+  var g = document.createElement('div');
+  g.className = 'tile-glyph';
+  g.textContent = d.glyph;
+
+  var wrap = document.createElement('div');
+  var name = document.createElement('div');
+  name.className = 'tile-name';
+  name.textContent = item.room ? d.name + ', ' + item.room : d.name;
+  var st = document.createElement('div');
+  st.className = 'tile-state';
+  st.textContent = d.kind === 'intercom' ? 'citofono' : describeLast(d);
+  wrap.appendChild(name);
+  wrap.appendChild(st);
+
+  var azioni = document.createElement('div');
+  azioni.className = 'tile-actions';
+  function pulsante(testo, acceso, cls){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn ' + cls;
+    b.textContent = testo;
+    b.addEventListener('click', function(){
+      if (d.kind === 'intercom') toggle(d.id);
+      else {
+        command(d.id, acceso);
+        el.className = 'tile tile-dev' + (acceso ? ' is-on' : '');
+        st.textContent = describeLast(d);
+      }
+      if (onChange) onChange();
+    });
+    azioni.appendChild(b);
+  }
+  if (d.kind === 'intercom') pulsante('Apri', true, 'btn-on');
+  else {
+    pulsante('Accendi', true, 'btn-on');
+    pulsante('Spegni', false, 'btn-off');
+  }
+
+  el.appendChild(g);
+  el.appendChild(wrap);
+  el.appendChild(azioni);
+  return el;
+}
+
 function tile(item, onChange){
   var d = item.d;
+  if (item.kind === 'dev' && !notConnected(d)) return deviceTile(item, onChange);
   var el = document.createElement('button');
   el.type = 'button';
   el.className = 'tile' + (item.kind === 'scene' ? ' tile-scene' : (d.on ? ' is-on' : ''));

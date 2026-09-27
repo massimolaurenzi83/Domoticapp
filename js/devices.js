@@ -1,5 +1,5 @@
 import { sendViaBridge, bridgeConfigured } from './bridge.js';
-import { settings, save } from './config.js';
+import { settings, save, effectiveRole } from './config.js';
 import { sendToGoogle } from './google.js';
 
 // Stanze, dispositivi e scene di casa.
@@ -121,7 +121,7 @@ export function applyLayout(next){
       glyph: tipo.glyph,
       via: src.via || 'google',
       google: src.google || '',
-      on: !!prima[src.id]
+      on: statoNoto(src.id, prima[src.id])
     };
     if (tipo.kind === 'speaker') speakers.push(dev);
     else devices.push(dev);
@@ -180,10 +180,15 @@ export function findDevice(id){
   return null;
 }
 
-export function toggle(id, byPerson){
+// Il pannello non puo sapere se una luce e davvero accesa: Google, per
+// questa strada, non lo dice. Per questo ogni comando si manda sempre,
+// anche se il pannello crede che la luce sia gia in quello stato: prima
+// un "accendi" su una luce creduta accesa veniva saltato, e le caselle
+// finivano al contrario.
+export function command(id, on, byPerson){
   var d = findDevice(id);
   if (!d) return null;
-  d.on = !d.on;
+  d.on = !!on;
   if (byPerson !== false) {
     for (var w = 0; w < toggleWatchers.length; w++) toggleWatchers[w](id, d.on);
   }
@@ -191,10 +196,51 @@ export function toggle(id, byPerson){
   return d;
 }
 
-export function setDevice(id, on, byPerson){
+export function toggle(id, byPerson){
   var d = findDevice(id);
-  if (!d || d.on === !!on) return d;
-  return toggle(id, byPerson);
+  if (!d) return null;
+  return command(id, !d.on, byPerson);
+}
+
+export function setDevice(id, on, byPerson){
+  return command(id, on, byPerson);
+}
+
+// ---------- ultimo comando, uguale su tutti i dispositivi ----------
+//
+// Si ricorda chi ha dato l ultimo comando e quando, e viaggia con le
+// impostazioni: tablet e telefono mostrano la stessa cosa.
+
+function readLog(){
+  try { return JSON.parse(settings.deviceLog || '{}') || {}; } catch (e) { return {}; }
+}
+
+function writeLog(registro){
+  settings.deviceLog = JSON.stringify(registro);
+  save();
+  try { window.dispatchEvent(new CustomEvent('casa-tocca', { detail: ['deviceLog'] })); } catch (e) {}
+}
+
+export function lastCommand(id){ return readLog()[id] || null; }
+
+function statoNoto(id, fallback){
+  var r = readLog()[id];
+  return r ? !!r.on : !!fallback;
+}
+
+function record(dev){
+  var registro = readLog();
+  var prima = registro[dev.id] || null;
+  registro[dev.id] = { on: !!dev.on, at: Date.now(), da: effectiveRole() === 'pannello' ? 'tablet' : 'telefono' };
+  writeLog(registro);
+  return prima;
+}
+
+function undo(dev, prima){
+  var registro = readLog();
+  if (prima) registro[dev.id] = prima; else delete registro[dev.id];
+  writeLog(registro);
+  dev.on = prima ? !!prima.on : false;
 }
 
 export function runScene(id){
@@ -235,18 +281,22 @@ function send(dev, action){
 
   if (viaBridge && !bridgeConfigured()) { note('non inviato, manca il ponte'); return; }
   if (viaBridge) {
-    sendViaBridge(via, dev.id, action).then(function(ok){ note(ok ? 'inviato' : 'ponte non raggiungibile'); });
+    var primaPonte = record(dev);
+    sendViaBridge(via, dev.id, action).then(function(ok){
+      note(ok ? 'inviato' : 'ponte non raggiungibile');
+      if (!ok) { undo(dev, primaPonte); report(dev, false, 'ponte non raggiungibile'); }
+    });
     return;
   }
   if (!LIVE || !viaGoogle(dev)) { note('non inviato, Google Home non ancora collegato'); return; }
 
   var frase = googlePhrase(dev, action);
-  var prima = !dev.on;
+  var prima = dev.kind === 'intercom' ? null : record(dev);
   sendToGoogle(frase).then(function(r){
     var male = r.ok && sembraRifiuto(r.risposta);
     if (r.ok && !male) { note('inviato: ' + frase); report(dev, true, r.risposta); return; }
     // Il comando non e andato: la casella torna com era, e si dice perche.
-    dev.on = prima;
+    if (dev.kind !== 'intercom') undo(dev, prima);
     var perche = male ? 'Google ha risposto: ' + r.risposta : r.errore;
     note('non riuscito: ' + perche);
     report(dev, false, perche);

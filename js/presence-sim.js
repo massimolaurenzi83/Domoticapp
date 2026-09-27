@@ -10,7 +10,7 @@
 // accendete le luci davvero.
 
 import { settings } from './config.js';
-import { devices, toggle, findDevice } from './devices.js';
+import { devices, setDevice, findDevice } from './devices.js';
 
 var HABITS_KEY = 'domapp.habits.v1';
 
@@ -131,7 +131,7 @@ export function stopSimulation(){
     var step = plan[i];
     if (!step.done || !step.on) continue;
     var d = findDevice(step.id);
-    if (d && d.on) toggle(d.id, false);
+    if (d) setDevice(d.id, false, false);
   }
   plan = [];
 }
@@ -155,7 +155,7 @@ function tick(){
     if (minutes < step.at || minutes > step.at + 2) continue;
 
     var d = findDevice(step.id);
-    if (d && d.on !== step.on) toggle(d.id, false);
+    if (d) setDevice(d.id, step.on, false);
     step.done = true;
   }
 }

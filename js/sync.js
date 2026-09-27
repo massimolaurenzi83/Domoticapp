@@ -75,6 +75,12 @@ export function touch(){
 // evento, cosi non devono conoscere questo modulo.
 window.addEventListener('casa-dati', function(){ pushSoon(); });
 
+// Un modulo che cambia un impostazione per conto di una persona, come
+// l ultimo comando dato a una luce, la segna con questo evento.
+window.addEventListener('casa-tocca', function(e){
+  touch.apply(null, (e && e.detail) || []);
+});
+
 // Le modifiche ravvicinate partono insieme, un attimo dopo l ultima.
 export function pushSoon(){
   if (pushTimer) clearTimeout(pushTimer);

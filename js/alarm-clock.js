@@ -8,13 +8,14 @@
 // molto meno brusco di un allarme.
 
 import { settings } from './config.js';
-import { findDevice, toggle, devices, speakers, rooms } from './devices.js';
+import { findDevice, setDevice, devices, speakers, rooms } from './devices.js';
 
 var KEY = 'domapp.alarms.v1';
 
 var timer = null;
 var active = null;
 var lastFired = '';
+var lastLight = '';
 var onStage = null;
 
 export var GIORNI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
@@ -135,16 +136,19 @@ function runStage(alarm, progress, stamp){
 
   // L alba: la luce si accende all inizio della finestra. Quando le luci
   // sapranno regolare l intensita, qui salira gradualmente.
-  if (progress > 0.05) {
+  // Il comando parte una volta sola per sveglia: prima si ripeteva a ogni
+  // controllo finche la luce non risultava accesa.
+  if (progress > 0.05 && lastLight !== stamp) {
+    lastLight = stamp;
     var light = findDevice(alarm.light);
-    if (light && !light.on) toggle(light.id, false);
+    if (light) setDevice(light.id, true, false);
   }
 
   // La musica parte solo all orario vero, e una volta sola.
   if (progress >= 1 && lastFired !== stamp) {
     lastFired = stamp;
     var sp = findDevice(alarm.speaker);
-    if (sp && !sp.on) toggle(sp.id, false);
+    if (sp) setDevice(sp.id, true, false);
   }
 }
 

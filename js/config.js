@@ -5,6 +5,7 @@ var KEY = 'domapp.settings.v1';
 
 export var SCHEMA = [
   { id:'homeLayout', type:'hidden', def:'', group:'Nascosto', label:'Disposizione di casa' },
+  { id:'deviceLog', type:'hidden', def:'', group:'Nascosto', label:'Ultimo comando di ogni dispositivo' },
   { id:'homeWidgets', type:'widgets', def:'', group:'Schermata principale',
     label:'Riquadri accanto all’orologio',
     hint:'Accendi quelli che vuoi vedere e mettili nell’ordine che preferisci' },

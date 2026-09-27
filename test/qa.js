@@ -245,6 +245,9 @@ prova('Movimento', 'un solo fotogramma non basta a far scattare l allarme',
 // ---------- 10. archivio sentinella ----------
 // l archivio sopravvive fra un collaudo e l altro: lo svuoto
 await sent.clearAll();
+// Gli ultimi comandi inventati dalle prove non devono comparire sulle caselle.
+cfg.settings.deviceLog = '';
+cfg.save();
 const finta = new Blob([new Uint8Array(4000)], { type: 'image/jpeg' });
 await sent.saveShot(finta, 'evA', 40);
 await sent.saveShot(finta, 'evA', 70);
@@ -744,6 +747,67 @@ prova('Voce', 'la diagnostica dice se manca la voce italiana', voce.speechStatus
     cfg.settings.syncUrl = vecchi.url;
     cfg.settings.syncToken = vecchi.token;
     await smod.checkSpotify();
+  }
+}
+
+// ---------- 31. caselle con Accendi e Spegni ----------
+{
+  const dmod = await import('/js/devices.js');
+  const gmod = await import('/js/google.js');
+  const ui = await import('/js/ui.js');
+  const vecchioFetch = window.fetch;
+  const vecchi = { url: cfg.settings.syncUrl, token: cfg.settings.syncToken, log: cfg.settings.deviceLog };
+  const inviate = [];
+  let risposta = { ok: true, risposta: 'Ok.' };
+  window.fetch = async (u, o) => {
+    u = String(u);
+    if (u.indexOf('https://finto.test/') !== 0) return vecchioFetch(u, o);
+    if (u.endsWith('/google/stato')) return new Response(JSON.stringify({ collegato: true }));
+    if (u.endsWith('/google')) { inviate.push(JSON.parse(o.body).testo); return new Response(JSON.stringify(risposta)); }
+    return new Response('{}');
+  };
+  cfg.settings.syncUrl = 'https://finto.test';
+  cfg.settings.syncToken = 'prova';
+  cfg.settings.deviceLog = '';
+  const attendi = () => new Promise(r => setTimeout(r, 80));
+  try {
+    dmod.setLive(await gmod.checkGoogle());
+    const luce = dmod.findDevice('luce-cucina');
+    luce.on = true;
+    inviate.length = 0;
+    dmod.setDevice('luce-cucina', true);
+    await attendi();
+    prova('Caselle', 'accendi parte anche se il pannello crede la luce già accesa', inviate[0] === 'accendi luce cucina', inviate.join(' | '));
+    const r = dmod.lastCommand('luce-cucina');
+    prova('Caselle', 'si ricorda chi ha dato l ultimo comando e quando', r && r.on === true && (r.da === 'tablet' || r.da === 'telefono') && Date.now() - r.at < 5000);
+    prova('Caselle', 'l ultimo comando viaggia con le impostazioni', JSON.parse(cfg.settings.deviceLog)['luce-cucina'].on === true);
+
+    risposta = { ok: false, error: 'Google non raggiungibile' };
+    dmod.setDevice('luce-cucina', false);
+    await attendi();
+    prova('Caselle', 'se il comando non va, resta il comando riuscito prima', dmod.lastCommand('luce-cucina').on === true && luce.on === true);
+    risposta = { ok: true, risposta: 'Ok.' };
+
+    ui.renderTab('casa', null);
+    const sezione = [...document.querySelectorAll('#control-body .room-section')].find(x => x.querySelector('.room-title').textContent === 'Cucina');
+    const casella = sezione && [...sezione.querySelectorAll('.tile-dev')].find(t => t.querySelector('.tile-name').textContent.indexOf('Luce') === 0);
+    const pulsanti = casella ? [...casella.querySelectorAll('button')].map(b => b.textContent) : [];
+    prova('Caselle', 'ogni luce ha i pulsanti Accendi e Spegni', pulsanti.join(',') === 'Accendi,Spegni', pulsanti.join(','));
+    prova('Caselle', 'sotto il nome si legge l ultimo comando', casella && /acceso dal (tablet|telefono) alle/.test(casella.textContent), casella && casella.textContent);
+    inviate.length = 0;
+    casella.querySelectorAll('button')[1].click();
+    await attendi();
+    prova('Caselle', 'il pulsante Spegni manda spegni', inviate[0] === 'spegni luce cucina' && dmod.lastCommand('luce-cucina').on === false);
+    const cit = [...document.querySelectorAll('#control-body .tile-dev')].find(t => t.textContent.includes('Citofono'));
+    prova('Caselle', 'il citofono ha un solo pulsante Apri', cit && [...cit.querySelectorAll('button')].map(b => b.textContent).join(',') === 'Apri');
+  } finally {
+    window.fetch = vecchioFetch;
+    cfg.settings.syncUrl = vecchi.url;
+    cfg.settings.syncToken = vecchi.token;
+    cfg.settings.deviceLog = vecchi.log;
+    cfg.save();
+    dmod.setLive(false);
+    await gmod.checkGoogle();
   }
 }
 

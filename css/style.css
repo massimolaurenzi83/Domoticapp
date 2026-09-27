@@ -328,3 +328,10 @@ html,body{
 .music-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
 .music-grid .tile{min-height:100px;}
 .music-chosen{outline:2px solid var(--accent);}
+
+/* ---------- caselle con Accendi e Spegni ---------- */
+.tile-dev{min-height:150px;}
+.tile-actions{display:flex;gap:8px;margin-top:12px;}
+.tile-actions .btn{flex:1;font-size:17px;padding:13px 6px;min-width:0;}
+.tile-actions .btn-on{background:var(--on-bg);color:var(--on);}
+.tile-actions .btn-off{background:var(--card-hi);color:var(--fg);}
