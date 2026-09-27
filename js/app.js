@@ -572,7 +572,7 @@ function setupVoice(){
       if (!passeggero) dot.hidden = (state !== 'listening' && state !== 'capturing');
       if (state === 'capturing') showVoiceBar('', 'Ti ascolto, detta il promemoria.');
       if (state === 'awaiting') { beep(1); bumpAwake(); showVoiceBar('', 'Dimmi pure, ti ascolto.', 8000); }
-      if (state === 'partial') showVoiceBar(payload || '…', '…', 8000);
+      if (state === 'heard') showVoiceBar(payload || '', 'Ricevuto...', 4000);
       // Il passaggio a fermo arriva subito dopo un rifiuto: non deve
       // cancellare l avviso che spiega cosa e successo.
       if (state !== 'idle') {
@@ -608,7 +608,7 @@ function setupVoice(){
       if (result.spotify) runSpotify(rest, result.spotify);
       if (result.weather) result.reply = weatherSentence(lastWeather);
       showVoiceBar(rest, result.reply);
-      if (settings.voiceReply) say(result.reply);
+      if (settings.voiceReply) say(result.speak || result.reply);
     }
   });
   dot.hidden = !ok;

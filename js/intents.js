@@ -180,7 +180,11 @@ export function runCommand(text){
 // Lista della spesa a voce: piu cose in una frase, anche senza virgole;
 // togliere, leggere, svuotare.
 function shoppingCommand(text, raw){
-  function spesa(reply){ return { reply: reply, screen: 'control', tab: 'spesa', refresh: true }; }
+  // A voce si risponde corto: mentre il tablet parla il microfono e chiuso,
+  // e una risposta lunga faceva perdere il comando successivo. L elenco
+  // completo si legge sullo schermo.
+  function spesa(reply, corta){ return { reply: reply, speak: corta || reply, screen: 'control', tab: 'spesa', refresh: true }; }
+  function quante(n, una, tante){ return n === 1 ? una : n + ' ' + tante; }
 
   if (has(text, ['svuota', 'svuotare', 'cancella tutto', 'cancella tutta', 'togli tutto', 'elimina tutto',
                  'cancella la lista', 'azzera'])) {
@@ -200,14 +204,16 @@ function shoppingCommand(text, raw){
     var parti = [];
     if (r.tolte.length) parti.push((r.tolte.length === 1 ? 'Tolto ' : 'Tolti ') + spokenList(r.tolte) + '.');
     if (r.mancanti.length) parti.push('Non trovo ' + spokenList(r.mancanti) + ' nella lista.');
-    return spesa(parti.join(' ') || 'Cosa devo togliere dalla lista?');
+    var cortaT = r.tolte.length > 2 ? 'Fatto, ' + r.tolte.length + ' cose tolte.' + (r.mancanti.length ? ' ' + parti[1] : '') : '';
+    return spesa(parti.join(' ') || 'Cosa devo togliere dalla lista?', cortaT);
   }
 
   var a = addFromVoice(raw);
   var detto = [];
   if (a.aggiunte.length) detto.push((a.aggiunte.length === 1 ? 'Aggiunto ' : 'Aggiunti ') + spokenList(a.aggiunte) + '.');
   if (a.gia.length) detto.push(spokenList(a.gia) + (a.gia.length === 1 ? ' c’era già.' : ' c’erano già.'));
-  return spesa(detto.join(' ') || 'Cosa devo aggiungere alla spesa?');
+  var corta = a.aggiunte.length > 2 ? 'Fatto, ' + quante(a.aggiunte.length, 'una cosa', 'cose') + ' aggiunte.' : '';
+  return spesa(detto.join(' ') || 'Cosa devo aggiungere alla spesa?', corta);
 }
 
 // Comandi per Spotify. La risposta si dice subito; il comando lo manda il

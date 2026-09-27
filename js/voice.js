@@ -78,9 +78,9 @@ function build(R){
   rec = new R();
   rec.lang = 'it-IT';
   rec.continuous = true;
-  // I risultati parziali servono a mostrare subito cosa si sta sentendo:
-  // prima lo schermo restava muto finche non si finiva di parlare.
-  rec.interimResults = true;
+  // Niente risultati parziali: sul Chrome del tablet vecchio facevano
+  // arrivare le frasi a spezzoni e ripetute, e la spesa si bloccava.
+  rec.interimResults = false;
   rec.maxAlternatives = 1;
 
   rec.onstart = function(){ status = 'in ascolto'; listeningNow = true; triedAfterTouch = false; lastErrorKind = ''; notify('listening'); };
@@ -132,7 +132,7 @@ function spin(){
   // Dopo un errore di rete si aspetta di piu: il riconoscimento passa dai
   // server di Google, e riprovare ogni terzo di secondo senza rete scalda
   // il tablet per niente.
-  var attesa = (lastErrorKind === 'network' && Date.now() - lastErrorAt < 30000) ? 5000 : 350;
+  var attesa = (lastErrorKind === 'network' && Date.now() - lastErrorAt < 30000) ? 5000 : 120;
   restartTimer = setTimeout(function(){
     if (!wanted || speaking) return;
     try { rec.start(); }
@@ -171,8 +171,13 @@ function partial(text){
 // ignorato.
 var followUntil = 0;
 
+// Il riconoscimento di Android a volte consegna due volte la stessa frase.
+var lastHandled = { text: '', at: 0 };
+
 function handle(text){
   if (!text) return;
+  if (text === lastHandled.text && Date.now() - lastHandled.at < 4000) return;
+  lastHandled = { text: text, at: Date.now() };
   lastHeard = text;
 
   if (!captureOnce && Date.now() < followUntil) {
