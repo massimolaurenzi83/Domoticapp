@@ -33,6 +33,17 @@ const SCOPE = [
 ].join(' ');
 
 function dici(t) { process.stdout.write(t + '\n'); }
+
+// Su Windows gli strumenti lanciati dallo script, finendo, mandano un
+// "interrompi" a tutta la finestra, e lo script si chiudeva a meta senza
+// dire niente. Il primo si ignora; per fermare davvero basta premere
+// Ctrl+C due volte, o chiudere la finestra.
+let interruzioni = 0;
+process.on('SIGINT', () => {
+  interruzioni++;
+  if (interruzioni >= 2) { dici('\nFermato.'); process.exit(1); }
+  dici('   (per fermare lo script premi di nuovo Ctrl+C)');
+});
 function fermati(t) { dici('\nFERMO: ' + t + '\n'); process.exit(1); }
 
 function chiedi(domanda) {
@@ -195,8 +206,13 @@ async function main() {
   }
 
   dici('4. Aggiornamento del servizio di casa...');
-  const dep = spawnSync('npx', ['--yes', 'wrangler@4', 'deploy'], { cwd: WORKER, encoding: 'utf8', shell: true });
-  if (dep.status !== 0) fermati('non riesco ad aggiornare il servizio:\n' + (dep.stdout || '') + (dep.stderr || ''));
+  // Se il servizio conosce gia Spotify non serve ripubblicarlo.
+  const giaPronto = await fetch(casa.URL + '/spotify/stato', { headers: { 'X-Casa-Token': casa.CASA_TOKEN } })
+    .then((r) => r.status !== 404).catch(() => false);
+  if (!giaPronto) {
+    const dep = spawnSync('npx', ['--yes', 'wrangler@4', 'deploy'], { cwd: WORKER, encoding: 'utf8', shell: true });
+    if (dep.status !== 0) fermati('non riesco ad aggiornare il servizio:\n' + (dep.stdout || '') + (dep.stderr || ''));
+  }
   let consegnato = false;
   for (let i = 0; i < 6 && !consegnato; i++) {
     try {
