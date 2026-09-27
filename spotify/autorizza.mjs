@@ -66,6 +66,18 @@ function chiediPermesso(clientId) {
     const challenge = createHash('sha256').update(verifier).digest('base64url');
     const stato = randomBytes(12).toString('hex');
 
+    // Su PowerShell lo script si chiudeva da solo mentre aspettava il
+    // browser. Questo orologio lo tiene acceso finche non arriva il
+    // permesso, per dieci minuti al massimo.
+    const vivo = setInterval(() => {}, 1000);
+    const scadenza = setTimeout(() => {
+      try { server.close(); } catch (e) {}
+      reject(new Error('tempo scaduto: il permesso non e arrivato entro dieci minuti. Rilancia il comando.'));
+    }, 10 * 60000);
+    const fine = (fn) => (v) => { clearInterval(vivo); clearTimeout(scadenza); fn(v); };
+    resolve = fine(resolve);
+    reject = fine(reject);
+
     const server = createServer(async (req, res) => {
       const u = new URL(req.url, 'http://127.0.0.1');
       if (u.pathname !== '/callback') { res.writeHead(404); res.end(); return; }
@@ -102,7 +114,8 @@ function chiediPermesso(clientId) {
       });
       dici('   Si apre il browser sulla pagina di Spotify. Se non si apre, copia questo indirizzo:\n');
       dici('   ' + url + '\n');
-      dici('   Entra con il tuo account Spotify Premium e premi Accetto.\n');
+      dici('   Entra con il tuo account Spotify Premium e premi Accetto.');
+      dici('   Non chiudere questa finestra: sto aspettando la risposta di Spotify...\n');
       apriBrowser(url);
     });
   });
