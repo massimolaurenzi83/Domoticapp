@@ -41,7 +41,7 @@ Spotify vede, aggiorna il servizio di casa e rifà la prova da solo.
 |---|---|
 | INVALID_CLIENT o redirect | nell'app Spotify, Redirect URIs deve contenere esattamente `http://127.0.0.1:8888/callback` |
 | Spotify rifiuta l'accesso | nell'app Spotify apri **User Management** e aggiungi il tuo nome e l'email del tuo account Spotify |
-| Spotify non vede nessun altoparlante acceso | fai partire la musica su un Nest dall'app Spotify: da lì in poi il pannello lo vede |
+| non suona niente | scegli il Nest dall'app Spotify sul telefono, icona degli altoparlanti: poi il pannello lo comanda |
 | permesso Spotify da rinnovare dal computer | rilancia `node spotify/autorizza.mjs` |
 
 ## Come si usa
@@ -53,5 +53,8 @@ Spotify vede, aggiorna il servizio di casa e rifà la prova da solo.
   "prossima canzone", "metti la playlist cena in soggiorno".
 - La scena **Silenzio** ferma anche Spotify.
 
-Il pannello riconosce i Nest dal campo **Nome in Google Home** o dalla
-stanza: Spotify li chiama con lo stesso nome che hanno in Google Home.
+Il limite: Spotify mostra ai programmi come questo solo il Nest che sta
+suonando. I Nest spenti li trova solo l'app sul telefono, in casa. Quindi
+il Nest si sceglie dall'app Spotify; pausa, volume, brani e playlist si
+comandano dal pannello, anche da fuori. Anche chiederlo a Google non
+funziona: da questa strada Google non accetta comandi di musica.

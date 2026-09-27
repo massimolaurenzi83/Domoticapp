@@ -33,6 +33,14 @@ export function renderMusic(body){
   wrap.appendChild(avviso);
 
   wrap.appendChild(titolo('Altoparlanti'));
+  // Spotify fa vedere ai programmi come questo solo il Nest che sta
+  // suonando: gli altri li trova solo l app sul telefono, in casa.
+  var nota = document.createElement('div');
+  nota.className = 'set-hint';
+  nota.style.cssText = 'font-size:15px;line-height:1.45;margin-top:-4px;';
+  nota.textContent = 'Qui compare solo il Nest che sta suonando. Per cambiare Nest usa l’app Spotify ' +
+    'sul telefono, icona degli altoparlanti.';
+  wrap.appendChild(nota);
   wrap.appendChild(altoparlanti());
   wrap.appendChild(titolo('Le tue playlist'));
   var pl = document.createElement('div');
@@ -109,8 +117,8 @@ function altoparlanti(){
     var v = document.createElement('div');
     v.className = 'set-hint';
     v.style.cssText = 'grid-column:1 / -1;font-size:16px;line-height:1.5;';
-    v.textContent = 'Spotify non vede altoparlanti accesi. Fai partire la musica una volta ' +
-      'dall’app Spotify su un Nest: da lì in poi compaiono qui.';
+    v.textContent = 'Non suona niente. Per scegliere il Nest apri l’app Spotify sul telefono, ' +
+      'tocca l’icona degli altoparlanti e scegli dove suonare: da qui poi la comandi.';
     grid.appendChild(v);
     return grid;
   }

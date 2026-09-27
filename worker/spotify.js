@@ -56,7 +56,7 @@ async function permesso(env, forza){
 // Spiegazioni in italiano per gli errori piu comuni di Spotify.
 function spiega(stato, corpo){
   var motivo = corpo && corpo.error && (corpo.error.reason || corpo.error.message) || '';
-  if (stato === 404 || /NO_ACTIVE_DEVICE/.test(motivo)) return 'Spotify non vede nessun altoparlante acceso: fai partire la musica una volta dall’app Spotify, poi riprova';
+  if (stato === 404 || /NO_ACTIVE_DEVICE/.test(motivo)) return 'non suona niente: scegli il Nest dall’app Spotify sul telefono, poi riprova';
   if (/PREMIUM_REQUIRED/.test(motivo)) return 'serve Spotify Premium';
   if (stato === 403) return 'Spotify non permette questo comando adesso' + (motivo ? ' (' + motivo + ')' : '');
   if (stato === 429) return 'troppi comandi in poco tempo, riprova fra un minuto';

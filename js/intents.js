@@ -209,7 +209,7 @@ function musicCommand(text, room){
     var sp = firstOf(speakers, function(x){ return x.room === room; });
     dove = (sp && matchDevice(sp)) || matchDevice({ google: '', room: room, name: '' });
     if (!dove) {
-      return { reply: 'Spotify non vede il Nest' + where(room) + '. Fallo partire una volta dall’app Spotify, poi riprova.',
+      return { reply: 'Il Nest' + where(room) + ' si sceglie dall’app Spotify sul telefono: da qui comando solo quello che sta già suonando.',
                screen: 'control', tab: 'musica' };
     }
   }
