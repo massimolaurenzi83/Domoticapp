@@ -2,8 +2,12 @@
 
 import {
   searchStations, topStations, play, stop, playing,
-  favourites, isFavourite, toggleFavourite, onRadioState, lastStation
+  favourites, isFavourite, toggleFavourite, onRadioState, lastStation,
+  castInfo, onCastChange, castToNest
 } from './radio.js';
+
+var castBtn = null;
+var castRegistered = false;
 
 var statusLine = null;
 
@@ -109,6 +113,31 @@ function nowBar(){
 
   bar.appendChild(name);
   bar.appendChild(statusLine);
+
+  // Trasmissione a un Nest: il pulsante c e solo dove Chrome lo permette.
+  var info = castInfo();
+  if (info.supported && info.available !== false) {
+    castBtn = document.createElement('button');
+    castBtn.type = 'button';
+    castBtn.className = 'btn';
+    castBtn.textContent = info.state === 'connected' ? 'Torna sul tablet' : 'Ascolta su un Nest';
+    castBtn.addEventListener('click', function(){
+      castToNest().then(function(msg){ if (msg) statusLine.textContent = msg; });
+    });
+    bar.appendChild(castBtn);
+  } else {
+    castBtn = null;
+  }
+  if (!castRegistered) {
+    castRegistered = true;
+    onCastChange(function(i){
+      if (!castBtn || !castBtn.isConnected) return;
+      castBtn.textContent = i.state === 'connected' ? 'Torna sul tablet'
+        : (i.state === 'connecting' ? 'Collego il Nest...' : 'Ascolta su un Nest');
+      castBtn.hidden = i.available === false;
+    });
+  }
+
   bar.appendChild(stopBtn);
   return bar;
 }

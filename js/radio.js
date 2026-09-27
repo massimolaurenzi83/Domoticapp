@@ -4,9 +4,9 @@
 // comunita: nessuna registrazione, nessuna chiave, nessun costo. Contiene
 // decine di migliaia di stazioni di tutto il mondo.
 //
-// La riproduzione avviene sul tablet stesso, non sui Nest: per mandare
-// l audio sugli altoparlanti di casa servirebbe Spotify, che ha una sua
-// scheda. La radio e pensata per il pannello in cucina.
+// La riproduzione avviene sul tablet. Con Chrome su Android si puo anche
+// trasmettere a un Nest, come fa YouTube: Chrome mostra l elenco degli
+// altoparlanti Google di casa e la radio passa li.
 
 var BASES = [
   'https://de1.api.radio-browser.info',
@@ -75,14 +75,23 @@ function clean(list){
 
 // ---------- riproduzione ----------
 
+// L elemento audio sta nella pagina: Chrome trasmette ai Nest solo
+// quello che fa parte della pagina.
+function ensureAudio(){
+  if (audio) return audio;
+  audio = document.createElement('audio');
+  audio.preload = 'none';
+  audio.style.display = 'none';
+  document.body.appendChild(audio);
+  audio.addEventListener('playing', function(){ report(castState === 'connected' ? 'in onda sul Nest' : 'in onda'); });
+  audio.addEventListener('waiting', function(){ report('carico...'); });
+  audio.addEventListener('error', function(){ report('stazione non raggiungibile'); });
+  watchCast();
+  return audio;
+}
+
 export function play(station){
-  if (!audio) {
-    audio = new Audio();
-    audio.preload = 'none';
-    audio.addEventListener('playing', function(){ report('in onda'); });
-    audio.addEventListener('waiting', function(){ report('carico...'); });
-    audio.addEventListener('error', function(){ report('stazione non raggiungibile'); });
-  }
+  ensureAudio();
 
   current = station;
   try { localStorage.setItem(LAST_KEY, JSON.stringify(station)); } catch (e) {}
@@ -108,6 +117,64 @@ export function setVolume(v){
 }
 
 export function onRadioState(fn){ onState = fn; }
+
+// ---------- trasmissione a un Nest ----------
+
+var castState = 'disconnected';     // disconnected, connecting, connected
+var castAvailable = null;           // null = non si sa, true, false
+var castWatchers = [];
+
+function castSupported(){
+  return !!(audio && audio.remote && typeof audio.remote.prompt === 'function');
+}
+
+function notifyCast(){
+  for (var i = 0; i < castWatchers.length; i++) {
+    try { castWatchers[i](castInfo()); } catch (e) {}
+  }
+}
+
+function watchCast(){
+  if (!castSupported()) return;
+  var r = audio.remote;
+  castState = r.state || 'disconnected';
+  ['connecting', 'connect', 'disconnect'].forEach(function(ev){
+    r.addEventListener(ev, function(){
+      castState = r.state;
+      if (castState === 'connected' && current) report('in onda sul Nest');
+      if (castState === 'disconnected' && current) report('in onda sul tablet');
+      notifyCast();
+    });
+  });
+  // Alcuni tablet non sanno tenere d occhio gli altoparlanti: allora il
+  // pulsante resta e si prova quando lo tocchi.
+  try {
+    r.watchAvailability(function(ok){ castAvailable = ok; notifyCast(); })
+      .catch(function(){ castAvailable = null; notifyCast(); });
+  } catch (e) { castAvailable = null; }
+}
+
+// Cosa sa il pannello della trasmissione, per disegnare il pulsante.
+export function castInfo(){
+  ensureAudio();
+  return { supported: castSupported(), available: castAvailable, state: castState };
+}
+
+export function onCastChange(fn){ castWatchers.push(fn); }
+
+// Apre l elenco dei Nest di Chrome. Va chiamata dentro un tocco.
+export function castToNest(){
+  ensureAudio();
+  if (!castSupported()) return Promise.resolve('Questo browser non sa trasmettere ai Nest.');
+  if (!current) return Promise.resolve('Prima scegli una stazione.');
+  return audio.remote.prompt().then(function(){ return ''; }, function(e){
+    var n = e && e.name;
+    if (n === 'NotFoundError') return 'Chrome non trova Nest sulla rete: controlla che il tablet sia sul Wi-Fi di casa.';
+    if (n === 'NotAllowedError' || n === 'AbortError') return '';
+    if (n === 'NotSupportedError') return 'Questo tablet non permette di trasmettere questa stazione.';
+    return 'Non riesco a trasmettere: ' + (e && e.message ? e.message : 'errore sconosciuto') + '.';
+  });
+}
 
 function report(state){
   if (onState) onState(state, current);
