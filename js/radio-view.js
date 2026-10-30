@@ -5,6 +5,7 @@ import {
   favourites, isFavourite, toggleFavourite, onRadioState, lastStation,
   castInfo, onCastChange, castToNest
 } from './radio.js';
+import { screenOn, tvPlayRadio, tvStopRadio, tvRadio, onTvRadio } from './tv.js';
 
 var castBtn = null;
 var castRegistered = false;
@@ -108,19 +109,44 @@ function nowBar(){
   stopBtn.textContent = 'Ferma';
   stopBtn.addEventListener('click', function(){
     stop();
+    if (tvRadio()) tvStopRadio();
     name.textContent = 'Nessuna stazione in onda';
   });
 
   bar.appendChild(name);
   bar.appendChild(statusLine);
 
-  // Trasmissione a un Nest: il pulsante c e solo dove Chrome lo permette.
+  // Con lo schermo di casa acceso sulla TV, la radio suona dalla TV e
+  // sullo schermo resta il nome della stazione sopra le foto.
+  if (screenOn()) {
+    var tvBtn = document.createElement('button');
+    tvBtn.type = 'button';
+    tvBtn.className = 'btn';
+    tvBtn.textContent = 'Ascolta sulla TV';
+    tvBtn.addEventListener('click', function(){
+      var st = playing() || lastStation();
+      if (!st) { statusLine.textContent = 'Prima scegli una stazione.'; return; }
+      // Due radio insieme, dal tablet e dalla TV, non servono a nessuno.
+      stop();
+      name.textContent = st.name;
+      statusLine.textContent = 'mando la stazione alla TV...';
+      tvPlayRadio(st);
+    });
+    bar.appendChild(tvBtn);
+  }
+  if (tvRadio() && !playing()) {
+    name.textContent = tvRadio().name;
+    statusLine.textContent = 'in onda sulla TV';
+  }
+
+  // Trasmissione a un Nest o al Chromecast: il pulsante c e solo dove
+  // Chrome lo permette.
   var info = castInfo();
   if (info.supported && info.available !== false) {
     castBtn = document.createElement('button');
     castBtn.type = 'button';
     castBtn.className = 'btn';
-    castBtn.textContent = info.state === 'connected' ? 'Torna sul tablet' : 'Ascolta su un Nest';
+    castBtn.textContent = info.state === 'connected' ? 'Torna sul tablet' : 'Ascolta su Nest o TV';
     castBtn.addEventListener('click', function(){
       castToNest().then(function(msg){ if (msg) statusLine.textContent = msg; });
     });
@@ -130,10 +156,13 @@ function nowBar(){
   }
   if (!castRegistered) {
     castRegistered = true;
+    onTvRadio(function(stato){
+      if (statusLine && statusLine.isConnected) statusLine.textContent = stato;
+    });
     onCastChange(function(i){
       if (!castBtn || !castBtn.isConnected) return;
       castBtn.textContent = i.state === 'connected' ? 'Torna sul tablet'
-        : (i.state === 'connecting' ? 'Collego il Nest...' : 'Ascolta su un Nest');
+        : (i.state === 'connecting' ? 'Collego...' : 'Ascolta su Nest o TV');
       castBtn.hidden = i.available === false;
     });
   }
@@ -189,7 +218,9 @@ function fill(grid, list, body, title){
       }
 
       card.addEventListener('click', function(){
-        play(st);
+        // Se la radio sta suonando dalla TV, la stazione nuova va li.
+        if (tvRadio() && screenOn()) tvPlayRadio(st);
+        else play(st);
         var bar = body.querySelector('.radio-now');
         if (bar) bar.textContent = st.name;
       });

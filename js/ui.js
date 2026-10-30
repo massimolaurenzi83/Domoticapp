@@ -12,6 +12,7 @@ import { sendMessage } from './intercom.js';
 import { renderShopping, renderAlarms } from './extra-views.js';
 import { renderRadio } from './radio-view.js';
 import { renderMusic } from './music-view.js';
+import { renderTv } from './tv-view.js';
 import { profiles, profileName } from './profiles.js';
 
 var GIORNI = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
@@ -33,6 +34,9 @@ export function setCurrentProfile(id){ currentProfile = id; }
 
 export function renderTab(tab, onChange){
   var body = document.getElementById('control-body');
+  // Le schede che si ridisegnano da sole guardano qui se sono ancora aperte.
+  body.setAttribute('data-scheda', tab);
+  if (tab === 'tv') { renderTv(body); return; }
   if (tab === 'agenda') { renderAgenda(body, onChange); return; }
   if (tab === 'sicurezza') { renderSecurity(body); return; }
   if (tab === 'spesa') { renderShopping(body); return; }

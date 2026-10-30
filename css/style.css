@@ -335,3 +335,21 @@ html,body{
 .tile-actions .btn{flex:1;font-size:17px;padding:13px 6px;min-width:0;}
 .tile-actions .btn-on{background:var(--on-bg);color:var(--on);}
 .tile-actions .btn-off{background:var(--card-hi);color:var(--fg);}
+
+/* ---------- televisore ---------- */
+.tv-row{display:flex;gap:10px;flex-wrap:wrap;}
+.tv-btn{font-size:19px;padding:15px 20px;min-width:84px;}
+.tv-btn.btn-on{background:var(--on-bg);color:var(--on);}
+.tv-chosen{outline:2px solid var(--accent);}
+.tv-apps{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;}
+.tv-apps .tv-btn{min-height:64px;}
+.tv-avviso{font-size:16px;min-height:1em;line-height:1.45;}
+.tv-field{
+  flex:1;min-width:0;background:#1e2228;border:1px solid #272c33;color:#f2f3f5;
+  font-family:inherit;font-size:17px;padding:15px;border-radius:10px;
+}
+/* Anteprima della TV: la pagina vera a 1280 per 720, rimpicciolita. */
+.tv-preview{position:relative;width:640px;max-width:100%;height:360px;overflow:hidden;
+  border-radius:12px;border:1px solid var(--line);background:#000;}
+.tv-preview iframe{position:absolute;top:0;left:0;width:1280px;height:720px;border:0;
+  transform:scale(.5);transform-origin:0 0;}

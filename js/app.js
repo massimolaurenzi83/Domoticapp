@@ -39,6 +39,8 @@ import { checkSpotify, spotifyCommand, spotifyStatus, spotifyReady } from './spo
 import { loadWallpapers, applyWallpaper } from './wallpaper.js';
 import { startVoice, stopVoice, say, voiceAvailable, voiceDiagnostics, captureNext, primeSpeech, speechStatus, voiceListening } from './voice.js';
 import { runCommand } from './intents.js';
+import { startTv, tvNotify, tvWeather, tvDiagnostics, tvCommand, tvOffOnArm, setSleep, clearSleep,
+         tvSettingsChanged } from './tv.js';
 
 var screens = {
   photos:  document.getElementById('screen-photos'),
@@ -174,6 +176,7 @@ function weatherSentence(w){
 function refreshWeather(){
   fetchWeather().then(function(w){
     lastWeather = w;
+    tvWeather(w);
     document.getElementById('weather-temp').textContent = w.temp + '\u00B0';
     var line = w.desc;
     if (w.min !== null && w.max !== null) line += '  ' + w.min + '\u00B0 / ' + w.max + '\u00B0';
@@ -200,6 +203,9 @@ function openSettings(){
     if (id === 'photos') loadPhotos().then(function(){ if (!isAwake()) show(idleScreen()); });
     if (id === 'lat' || id === 'lon' || id === 'placeName') refreshWeather();
     if (id === 'voiceEnabled') { stopVoice(); setupVoice(); }
+    if (id === 'photoSeconds' || id === 'sleepStart' || id === 'sleepEnd' || id === 'placeName' ||
+        id === 'tvScreenHours') tvSettingsChanged();
+    if (id === 'tvCastAppId') renderCurrentTab();
   });
   document.getElementById('settings').hidden = false;
   updateDiagnostics();
@@ -228,6 +234,7 @@ function updateDiagnostics(){
     'Allineamento: ' + (syncConfigured() ? syncStatus() : 'solo questo tablet'),
     'Google Home: ' + googleStatus(),
     'Spotify: ' + spotifyStatus(),
+    tvDiagnostics(),
     'Notifiche: ' + (notificationsActive() ? 'attive' : (pushBlockedReason() || 'da attivare')),
     'Telefono: ' + (isIOS() ? ('iPhone, ' + (isStandalone() ? 'aperta dalla schermata Home' : 'aperta dentro il browser')) : 'Android o altro'),
     'Foto caricate: ' + photoCount(),
@@ -271,6 +278,7 @@ function boot(){
     show('ambient');
     beep(1);
     showVoiceBar('Messaggio da ' + last.from, last.text, 60000);
+    tvNotify('Messaggio da ' + last.from, last.text, 60);
     renderWidgets();
   });
 
@@ -278,6 +286,7 @@ function boot(){
   securityHooks.onArm = function(){
     armSentinel();
     bumpAwake();
+    tvOffOnArm();
     if (effectiveRole() !== 'pannello') {
       showVoiceBar('Sentinella', syncConfigured()
         ? 'Comando inviato: i pannelli di casa cominciano a sorvegliare entro mezzo minuto.'
@@ -374,6 +383,7 @@ function boot(){
   onToggle(noteHabit);
   setupGoogle();
   setupSpotify();
+  startTv();
 
   applyScale();
   unlockOnFirstTouch();
@@ -432,6 +442,7 @@ function boot(){
     beep(4);
     var what = t.name ? 'Il timer ' + t.name : 'Il timer';
     showVoiceBar('', what + ' è finito.');
+    tvNotify('Timer', what + ' è finito.', 30);
     if (settings.voiceReply) say(what + ' è finito.');
   });
 
@@ -606,6 +617,7 @@ function setupVoice(){
 
       if (result.screen === 'control') renderCurrentTab();
       if (result.spotify) runSpotify(rest, result.spotify);
+      if (result.tv) runTv(rest, result.tv);
       if (result.weather) result.reply = weatherSentence(lastWeather);
       showVoiceBar(rest, result.reply);
       if (settings.voiceReply) say(result.speak || result.reply);
@@ -815,6 +827,21 @@ function askGoogleAloud(heard, frase){
   });
 }
 
+// ---------- televisore ----------
+
+// Comandi a voce per la TV. La risposta si dice subito; se Google non
+// riesce, lo si dice dopo.
+function runTv(heard, c){
+  if (c.azione === 'spegni-fra') { setSleep(c.extra.minuti); renderCurrentTab(); return; }
+  if (c.azione === 'annulla-spegnimento') { clearSleep(); renderCurrentTab(); return; }
+  tvCommand(c.azione, c.extra).then(function(r){
+    if (r.ok) return;
+    var reply = 'TV: ' + r.errore + '.';
+    showVoiceBar(heard, reply, 12000);
+    if (settings.voiceReply) say(reply);
+  });
+}
+
 // ---------- Spotify ----------
 
 // Manda il comando detto a voce e, se non va, lo dice.
@@ -988,6 +1015,7 @@ function checkDueReminders(firstRun){
   show('ambient');
   beep(2);
   showVoiceBar('Promemoria', r.text);
+  tvNotify('Promemoria', r.text, 45);
   if (settings.voiceReply) say('Promemoria: ' + r.text);
 }
 

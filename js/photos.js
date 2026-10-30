@@ -53,3 +53,7 @@ export function nextPhoto(){
 }
 
 export function photoCount(){ return items.length; }
+
+// Tutte le foto, per chi le sfoglia per conto suo come la TV: nextPhoto
+// appartiene alla cornice del tablet e non va fatto avanzare da altri.
+export function photoList(){ return items.slice(); }

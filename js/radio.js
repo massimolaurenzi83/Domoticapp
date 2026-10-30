@@ -5,8 +5,8 @@
 // decine di migliaia di stazioni di tutto il mondo.
 //
 // La riproduzione avviene sul tablet. Con Chrome su Android si puo anche
-// trasmettere a un Nest, come fa YouTube: Chrome mostra l elenco degli
-// altoparlanti Google di casa e la radio passa li.
+// trasmettere a un Nest o al Chromecast della TV, come fa YouTube: Chrome
+// mostra l elenco dei dispositivi Google di casa e la radio passa li.
 
 var BASES = [
   'https://de1.api.radio-browser.info',
@@ -83,7 +83,7 @@ function ensureAudio(){
   audio.preload = 'none';
   audio.style.display = 'none';
   document.body.appendChild(audio);
-  audio.addEventListener('playing', function(){ report(castState === 'connected' ? 'in onda sul Nest' : 'in onda'); });
+  audio.addEventListener('playing', function(){ report(castState === 'connected' ? 'in onda sul dispositivo scelto' : 'in onda'); });
   audio.addEventListener('waiting', function(){ report('carico...'); });
   audio.addEventListener('error', function(){ report('stazione non raggiungibile'); });
   watchCast();
@@ -118,7 +118,7 @@ export function setVolume(v){
 
 export function onRadioState(fn){ onState = fn; }
 
-// ---------- trasmissione a un Nest ----------
+// ---------- trasmissione a un Nest o al Chromecast ----------
 
 var castState = 'disconnected';     // disconnected, connecting, connected
 var castAvailable = null;           // null = non si sa, true, false
@@ -141,7 +141,7 @@ function watchCast(){
   ['connecting', 'connect', 'disconnect'].forEach(function(ev){
     r.addEventListener(ev, function(){
       castState = r.state;
-      if (castState === 'connected' && current) report('in onda sul Nest');
+      if (castState === 'connected' && current) report('in onda sul dispositivo scelto');
       if (castState === 'disconnected' && current) report('in onda sul tablet');
       notifyCast();
     });
@@ -162,14 +162,14 @@ export function castInfo(){
 
 export function onCastChange(fn){ castWatchers.push(fn); }
 
-// Apre l elenco dei Nest di Chrome. Va chiamata dentro un tocco.
+// Apre l elenco di Chrome con Nest e Chromecast. Va chiamata dentro un tocco.
 export function castToNest(){
   ensureAudio();
-  if (!castSupported()) return Promise.resolve('Questo browser non sa trasmettere ai Nest.');
+  if (!castSupported()) return Promise.resolve('Questo browser non sa trasmettere a Nest o Chromecast.');
   if (!current) return Promise.resolve('Prima scegli una stazione.');
   return audio.remote.prompt().then(function(){ return ''; }, function(e){
     var n = e && e.name;
-    if (n === 'NotFoundError') return 'Chrome non trova Nest sulla rete: controlla che il tablet sia sul Wi-Fi di casa.';
+    if (n === 'NotFoundError') return 'Chrome non trova né Nest né Chromecast sulla rete: controlla che il tablet sia sul Wi-Fi di casa.';
     if (n === 'NotAllowedError' || n === 'AbortError') return '';
     if (n === 'NotSupportedError') return 'Questo tablet non permette di trasmettere questa stazione.';
     return 'Non riesco a trasmettere: ' + (e && e.message ? e.message : 'errore sconosciuto') + '.';

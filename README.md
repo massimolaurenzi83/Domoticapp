@@ -26,7 +26,8 @@ Tre schermate che si alternano da sole.
 | Stazione meteo | fuori dalla finestra diurna, e al passaggio di una persona |
 | Plancia di controllo | al tocco dello schermo |
 
-Dentro la plancia ci sono quattro schede: Casa, Musica, Clima e Agenda.
+Dentro la plancia ci sono le schede Casa, Musica, Clima, Agenda, TV,
+Radio, Spesa, Sveglia e Sicurezza.
 
 Il meteo arriva davvero da Open-Meteo, senza chiave e senza registrazione.
 I comandi dei dispositivi sono ancora simulati e finiscono nel registro
@@ -256,8 +257,10 @@ Le stazioni arrivano da Radio Browser, un archivio aperto mantenuto dalla
 comunita: nessuna registrazione, nessuna chiave. Si cerca per nome, si
 tiene premuto su una stazione per metterla fra le preferite.
 
-L'audio esce dal tablet, non dai Nest: per mandarlo sugli altoparlanti di
-casa serve Spotify, che ha la sua scheda.
+L'audio esce dal tablet. Il tasto Ascolta su Nest o TV apre l'elenco di
+Chrome e la manda a un Nest o al Chromecast della TV. Con lo schermo di
+casa acceso sulla TV compare anche Ascolta sulla TV, che lascia a schermo
+foto e ora con il nome della stazione.
 
 ## Spesa, timer e sveglia
 
@@ -286,7 +289,7 @@ risposto.
 
 ## Collaudo
 
-Il file `test/qa.js` contiene piu di novanta prove funzionali che coprono tutte le aree
+Il file `test/qa.js` contiene piu di centocinquanta prove funzionali che coprono tutte le aree
 del pannello, da eseguire solo su un pannello di prova. Il file `test/servizio.mjs` prova il
 servizio di collegamento sul computer. Le istruzioni per eseguirlo sono scritte in cima al file.
 
@@ -306,6 +309,7 @@ servizio di collegamento sul computer. Le istruzioni per eseguirlo sono scritte 
 | Telecamere | 2 |
 | Citofono | 2 |
 | Radio | 2 |
+| Televisore | 23 |
 | Meteo | 1 |
 | Microfono e fotocamera | 3 |
 | Notifiche | 2 |
@@ -471,6 +475,8 @@ Le prove del servizio si eseguono con `node test/servizio.mjs`.
 | Luci, TV, clima, prese | attraverso Google Home, dopo `google/GUIDA.md` |
 | Citofono | si prova attraverso Google Home, che a volte rifiuta di aprire a distanza |
 | Musica sui Nest | attraverso Spotify Premium, dopo `spotify/GUIDA.md` |
+| Telecomando della TV | attraverso Google Home e il Chromecast |
+| Schermo di casa sulla TV | sul Chromecast, dopo `tv/GUIDA.md` |
 | Broadlink e presa D-Link collegati direttamente | serve il ponte in casa |
 | Telecamere fisse | serve il ponte in casa, codice gia pronto |
 
@@ -498,6 +504,53 @@ permesso di Google resta nelle variabili di Vercel e in
 - Google concede circa cinquecento comandi al giorno: per una casa bastano.
 
 Le prove del programma si eseguono con `node test/ponte-google.mjs`.
+
+## Televisore
+
+Un LG del 2011 con il suo sistema NetCast, che LG non aggiorna più, e un
+Chromecast nella presa HDMI. La regola è una sola: **il televisore non si
+tocca**. Il pannello non parla mai con la TV e non cambia nessuna delle sue
+impostazioni; tutto passa dal Chromecast, che si stacca quando vuoi.
+Staccato quello, la TV è esattamente com'era.
+
+La scheda TV ha quattro parti.
+
+| Parte | Come funziona | Cosa serve |
+|---|---|---|
+| Telecomando: accendi, spegni, pausa, riprendi, volume, muto | frasi a Google Assistant, come a un Nest | Google Home collegato |
+| App: YouTube, Netflix, RaiPlay e le altre, ricerca su YouTube | frasi a Google Assistant | Chromecast con Google TV |
+| Schermo di casa sulla TV: foto, ora, meteo, promemoria, timer, messaggi | una pagina del pannello, `tv/`, che gira sul Chromecast | il numero di `tv/GUIDA.md` |
+| Spegnimento programmato | il pannello di casa manda "spegni" all'ora scelta | Google Home collegato |
+
+A voce:
+
+    Ambrogio metti in pausa la TV
+    Ambrogio alza il volume della TV
+    Ambrogio metti il volume della TV a 20
+    Ambrogio apri Netflix sulla TV
+    Ambrogio metti i video di cucina su YouTube sulla TV
+    Ambrogio spegni la TV fra mezz'ora
+
+Accendere e spegnere la TV dal Chromecast funziona solo se nel menu della
+TV è attivo SimpLink, il nome che LG dà all'HDMI-CEC. Il pannello non lo
+attiva: se è spento, quei due comandi non hanno effetto e il resto funziona
+lo stesso.
+
+Le frasi per Google sono raccolte in cima a `js/tv.js`, tutte insieme: se
+Google ne capisce meglio un'altra, si cambia lì.
+
+Lo schermo di casa ha le sue protezioni per lo schermo, nel caso la TV sia
+al plasma: ora e meteo si spostano ogni minuto, e la pagina si chiude da
+sola dopo le ore scelte, all'inizio delle ore di riposo e dieci minuti dopo
+che il tablet si è scollegato. Le foto viaggiano solo dentro casa, dal
+tablet al Chromecast, a pezzi da quaranta kilobyte.
+
+Il tasto Anteprima mostra nella scheda come apparirà la TV, con le foto e i
+dati veri, anche prima di avere il numero di applicazione.
+
+Nelle impostazioni, gruppo Televisore, si sceglie anche se spegnere la TV
+all'inizio delle ore di riposo e quando si arma la sentinella. Entrambe
+spente di fabbrica.
 
 ## Spotify
 

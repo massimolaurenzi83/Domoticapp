@@ -6,6 +6,7 @@ var KEY = 'domapp.settings.v1';
 export var SCHEMA = [
   { id:'homeLayout', type:'hidden', def:'', group:'Nascosto', label:'Disposizione di casa' },
   { id:'deviceLog', type:'hidden', def:'', group:'Nascosto', label:'Ultimo comando di ogni dispositivo' },
+  { id:'tvSleepAt', type:'hidden', def:0, group:'Nascosto', label:'Orario di spegnimento del televisore' },
   { id:'homeWidgets', type:'widgets', def:'', group:'Schermata principale',
     label:'Riquadri accanto all’orologio',
     hint:'Accendi quelli che vuoi vedere e mettili nell’ordine che preferisci' },
@@ -88,6 +89,19 @@ export var SCHEMA = [
   { id:'voiceReply', type:'bool', def:true, group:'Voce',
     label:'Risposta parlata',
     hint:'Se spenta risponde solo a schermo, senza disturbare' },
+
+  { id:'tvCastAppId', type:'text', def:'', group:'Televisore',
+    label:'Numero applicazione Cast',
+    hint:'Otto caratteri, si ottiene una volta sola seguendo tv/GUIDA.md. Serve solo allo schermo di casa sulla TV' },
+  { id:'tvScreenHours', type:'num', def:4, min:1, max:24, group:'Televisore',
+    label:'Ore massime dello schermo di casa sulla TV',
+    hint:'Poi si chiude da solo, e comunque all’inizio delle ore di riposo. Protegge lo schermo da immagini ferme troppo a lungo' },
+  { id:'tvOffAtSleep', type:'bool', def:false, group:'Televisore',
+    label:'Spegni la TV all’inizio delle ore di riposo',
+    hint:'Attraverso il Chromecast. Funziona solo se la TV accetta i comandi dall’HDMI' },
+  { id:'tvOffOnArm', type:'bool', def:false, group:'Televisore',
+    label:'Spegni la TV quando armi la sentinella',
+    hint:'Chi esce di casa non deve ricordarsi del televisore' },
 
   { id:'bridgeUrl', type:'text', def:'', group:'Sincronizzazione',
     label:'Indirizzo del ponte di casa',

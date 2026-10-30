@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280, initial-scale=1">
+<title>Casa sulla TV</title>
+<link rel="stylesheet" href="tv.css">
+</head>
+<body>
+
+<!-- Pagina che gira sul Chromecast, collegato all HDMI del televisore.
+     Il tablet le manda foto, meteo e avvisi attraverso la rete di casa.
+     Con ?prova=1 si apre in un browser qualsiasi come anteprima. -->
+
+<div id="stanza">
+  <div id="foto-a" class="foto"></div>
+  <div id="foto-b" class="foto"></div>
+  <div id="velo"></div>
+
+  <div id="info">
+    <div id="ora">--:--</div>
+    <div id="data">&nbsp;</div>
+    <div id="meteo"></div>
+    <div id="radio" hidden></div>
+  </div>
+
+  <div id="lato" hidden></div>
+</div>
+
+<div id="avviso" hidden>
+  <div id="avviso-titolo"></div>
+  <div id="avviso-testo"></div>
+</div>
+
+<div id="targhetta" hidden></div>
+
+<audio id="audio" preload="none"></audio>
+
+<script src="tv.js"></script>
+</body>
+</html>

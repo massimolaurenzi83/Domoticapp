@@ -839,6 +839,68 @@ prova('Voce', 'la diagnostica dice se manca la voce italiana', voce.speechStatus
   localStorage.removeItem('domapp.shopping.v1');
 }
 
+// ---------- 32. televisore ----------
+{
+  const tvm = await import('/js/tv.js');
+  const imod = await import('/js/intents.js');
+  const dmod = await import('/js/devices.js');
+  dmod.resetToExample();
+
+  const spenta = imod.runCommand('metti in pausa la tv');
+  prova('TV', 'senza Google collegato la TV non finge di obbedire', spenta && spenta.offline === true);
+
+  dmod.setLive(true);
+  try {
+    const az = f => { const r = imod.runCommand(f); return r && r.tv ? r.tv : null; };
+    prova('TV', '"metti in pausa la tv" mette in pausa la TV e non Spotify', (az('metti in pausa la tv') || {}).azione === 'pausa');
+    prova('TV', '"alza il volume della tv" alza il volume', (az('alza il volume della tv') || {}).azione === 'volSu');
+    const vol = az('metti il volume della televisione a 20');
+    prova('TV', 'il volume si può dire con un numero', vol && vol.azione === 'volume' && vol.extra.volume === 20, JSON.stringify(vol));
+    const mezz = az('spegni la tv tra mezz’ora');
+    prova('TV', '"spegni la tv tra mezz’ora" programma lo spegnimento', mezz && mezz.azione === 'spegni-fra' && mezz.extra.minuti === 30, JSON.stringify(mezz));
+    const ore = az('spegni il televisore fra 2 ore');
+    prova('TV', '"televisore" non viene scambiato per una durata in ore', ore && ore.extra && ore.extra.minuti === 120, JSON.stringify(ore));
+    prova('TV', 'lo spegnimento programmato si annulla a voce', (az('annulla lo spegnimento della tv') || {}).azione === 'annulla-spegnimento');
+    prova('TV', '"annulla il timer della tv" non tocca i timer della cucina', (az('annulla il timer della tv') || {}).azione === 'annulla-spegnimento');
+    const app = az('apri netflix sulla tv');
+    prova('TV', '"apri netflix sulla tv" apre Netflix', app && app.azione === 'app' && app.extra.app === 'Netflix', JSON.stringify(app));
+    const prime = az('metti amazon prime sulla tv');
+    prova('TV', 'le app si riconoscono anche col nome detto a voce', prime && prime.extra && prime.extra.app === 'Prime Video', JSON.stringify(prime));
+    const yt = az('metti i video di gatti su youtube sulla tv');
+    prova('TV', 'una ricerca su YouTube arriva alla TV', yt && yt.azione === 'guarda' && yt.extra.cosa === 'i video di gatti', JSON.stringify(yt));
+    prova('TV', '"togli l’audio alla tv" mette il muto', (az('togli l’audio alla tv') || {}).azione === 'muto');
+    prova('TV', '"riattiva l’audio della tv" toglie il muto', (az('riattiva l’audio della tv') || {}).azione === 'audio');
+    const acc = imod.runCommand('accendi la tv');
+    prova('TV', '"accendi la tv" passa dalla casella del televisore', acc && !acc.tv && /^Accendo il televisore/.test(acc.reply), acc && acc.reply);
+    const foto = imod.runCommand('metti le foto sulla tv');
+    prova('TV', 'le foto sulla TV chiedono un tocco, come vuole Chrome', foto && foto.tab === 'tv' && !foto.tv);
+    const musica = imod.runCommand('metti in pausa');
+    prova('TV', 'una pausa senza TV resta alla musica', musica && musica.tab === 'musica');
+    prova('TV', 'la frase per Google usa il nome in Google Home', tvm.tvPhrase('pausa') === 'metti in pausa su televisore', tvm.tvPhrase('pausa'));
+  } finally {
+    dmod.setLive(false);
+  }
+
+  const prima = cfg.settings.tvSleepAt;
+  const at = tvm.setSleep(30);
+  prova('TV', 'lo spegnimento programmato è un orario assoluto', Math.abs(at - Date.now() - 30 * 60000) < 2000 && tvm.sleepAt() === at);
+  tvm.clearSleep();
+  prova('TV', 'lo spegnimento programmato si annulla', tvm.sleepAt() === 0);
+  cfg.settings.tvSleepAt = prima; cfg.save();
+
+  const vecchioId = cfg.settings.tvCastAppId;
+  cfg.settings.tvCastAppId = 'non valido';
+  prova('TV', 'un numero di applicazione Cast sbagliato non viene usato', tvm.castAppId() === '');
+  const msg = await tvm.startScreen();
+  prova('TV', 'senza numero di applicazione lo schermo di casa spiega cosa manca', /GUIDA/.test(msg), msg);
+  cfg.settings.tvCastAppId = 'abcd1234';
+  prova('TV', 'il numero di applicazione si accetta anche in minuscolo', tvm.castAppId() === 'ABCD1234');
+  cfg.settings.tvCastAppId = vecchioId; cfg.save();
+
+  const pagina = await fetch('/tv/index.html', { cache: 'no-store' });
+  prova('TV', 'la pagina per il Chromecast è pubblicata', pagina.ok);
+}
+
 // ---------- pulizia finale ----------
 // I dati inventati dal collaudo non devono restare sul pannello.
 ['domapp.reminders.v1', 'domapp.shopping.v1', 'domapp.timers.v1', 'domapp.alarms.v1',

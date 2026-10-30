@@ -7,6 +7,7 @@
 
 import { devices, speakers, rooms, roomName, setDevice, toggle, runScene, scenes, isLive } from './devices.js';
 import { spotifyReady, spotifyState, matchDevice, findPlaylist } from './spotify.js';
+import { tvDevice, APPS } from './tv.js';
 
 // Risposta onesta quando il comando riguarda qualcosa che il pannello non
 // comanda ancora davvero. Meglio dirlo che fingere di averlo fatto.
@@ -83,7 +84,9 @@ export function runCommand(text){
   var wantsOff = has(text, ['spegni', 'spegnere', 'disattiva']);
 
   // Il timer va cercato prima della spesa: "aggiungi un timer" non e spesa.
-  if (has(text, ['timer', 'conta alla rovescia', 'cronometro'])) {
+  // "annulla il timer della TV" riguarda lo spegnimento della TV, non la cucina.
+  var timerTv = TV_WORDS.test(text);
+  if (has(text, ['timer', 'conta alla rovescia', 'cronometro']) && !timerTv) {
     if (has(text, ['annulla', 'cancella', 'ferma', 'togli', 'basta', 'stop'])) {
       var quanti = activeTimers().length;
       clearAllTimers();
@@ -133,6 +136,13 @@ export function runCommand(text){
     if (!isLive()) return notYet('luci');
     runScene(scena.id);
     return { reply: 'Fatto: ' + scena.name.toLowerCase() + '.', screen: 'control' };
+  }
+
+  // Il televisore va riconosciuto prima della musica: "metti in pausa la
+  // TV" non riguarda Spotify.
+  if (TV_WORDS.test(text)) {
+    var tv = tvCommand(text, raw, wantsOn, wantsOff);
+    if (tv) return tv;
   }
 
   if (has(text, ['musica', 'spotify', 'canzone', 'suona', 'metti su', 'playlist', 'volume', 'brano', 'pausa'])) {
@@ -249,6 +259,114 @@ function musicCommand(text, room){
     { azione: 'play', uri: pl.uri, dispositivo: dove ? dove.id : (st.dispositivoId || '') });
   if (dove) return musica('Metto la musica' + where(room) + '.', { azione: 'play', dispositivo: dove.id });
   return musica('Faccio ripartire la musica.', { azione: 'play' });
+}
+
+// ---------- televisore ----------
+//
+// Tutto passa dal Chromecast attraverso Google: il pannello non parla mai
+// con la TV. Accendi e spegni senza orario restano al ramo generale, che
+// li tratta come per ogni altro dispositivo.
+
+var TV_WORDS = /(^|[^a-z])(tv|tivu|tivvu|televisione|televisore|tele|chromecast)([^a-z]|$)/;
+
+function tvCommand(text, raw, wantsOn, wantsOff){
+  function tv(reply, azione, extra){
+    return { reply: reply, screen: 'control', tab: 'tv', tv: azione ? { azione: azione, extra: extra || null } : null };
+  }
+
+  // Lo schermo di casa sulla TV parte solo con un tocco: Chrome non apre
+  // l elenco dei Chromecast se la richiesta non viene da una persona.
+  if (has(text, ['foto', 'cornice', 'schermo di casa', 'pannello'])) {
+    return tv('Per portare le foto sulla TV tocca Porta sulla TV, qui nella scheda: Chrome lo apre solo con un tocco.');
+  }
+
+  if (!tvDevice()) {
+    if (wantsOn || wantsOff) return null;
+    return { reply: 'Non ho il televisore fra i dispositivi.', screen: 'control', tab: 'tv' };
+  }
+  if (!isLive()) return notYet('tv', 'tv');
+
+  if (has(text, ['annulla', 'cancella']) && has(text, ['spegn', 'timer'])) {
+    return tv('Spegnimento della TV annullato.', 'annulla-spegnimento');
+  }
+  if (wantsOff && has(text, [' tra ', ' fra ', ' dopo ', 'timer', 'mezz'])) {
+    // Le parole della TV vanno tolte: "televisore" finisce in "ore" e
+    // verrebbe scambiato per una durata.
+    var pulito = text.replace(TV_WORDS, ' ').replace(/’/g, "'").replace(/\bun' ?ora\b/, '1 ora');
+    var t = parseTimer(pulito);
+    if (!t) return tv('Fra quanto tempo devo spegnere la TV?');
+    return tv('Spengo la TV fra ' + spokenDuration(t.seconds) + '.', 'spegni-fra',
+              { minuti: Math.max(1, Math.round(t.seconds / 60)) });
+  }
+
+  // "disattiva l audio" contiene sia attiva sia disattiva: l audio va
+  // guardato prima di accendere e spegnere.
+  if (has(text, ['togli il muto', 'riattiva', 'rimetti l'])) return tv('Riattivo l’audio della TV.', 'audio');
+  if (has(text, ['muto', 'silenzia', 'disattiva l', 'togli l'])) return tv('Tolgo l’audio alla TV.', 'muto');
+
+  // Accendi e spegni senza orario: li fa il ramo generale.
+  if (wantsOn || wantsOff) return null;
+
+  if (has(text, ['volume', 'piu forte', 'piu piano', 'alza', 'abbassa'])) {
+    var n = text.match(/(?:volume|al|a)\s+(\d{1,3})\b/);
+    if (n) {
+      var v = Math.max(0, Math.min(100, parseInt(n[1], 10)));
+      return tv('Volume della TV al ' + v + ' per cento.', 'volume', { volume: v });
+    }
+    if (has(text, ['abbassa', 'piu piano', 'diminuisci'])) return tv('Abbasso il volume della TV.', 'volGiu');
+    return tv('Alzo il volume della TV.', 'volSu');
+  }
+
+  if (has(text, ['riprendi', 'continua', 'fai ripartire', 'play'])) return tv('Riprendo sulla TV.', 'riprendi');
+  if (has(text, ['pausa', 'ferma'])) return tv('Metto in pausa la TV.', 'pausa');
+  if (has(text, ['stop', 'interrompi'])) return tv('Interrompo sulla TV.', 'stop');
+  if (has(text, ['indietro'])) return tv('Torno indietro di trenta secondi.', 'indietro');
+  if (has(text, ['avanti', 'salta'])) return tv('Vado avanti di trenta secondi.', 'avanti');
+
+  // Cosa resta della frase togliendo i verbi, la TV e il nome dell app.
+  var app = appIn(text);
+  var cosa = senzaApp(text.replace(TV_WORDS, ' ').replace(/\b(su|da|con) youtube\b/g, ' '))
+    .replace(/^\s*(apri|avvia|metti|guarda|riproduci|fammi vedere|cerca|trasmetti)\b/, ' ')
+    .replace(/\b(su|sulla|sul|alla|in|nella|della|la|il|lo|l)\s*$/, ' ')
+    .replace(/\s+/g, ' ').trim()
+    .replace(/\s+(su|sulla|sul|alla|in|nella|della|la|il|lo|l)$/, '')
+    .replace(/^(su|sulla|sul|alla|in|nella|della|la|il|lo|l)$/, '');
+
+  var suYoutube = /\b(su|da|con) youtube\b/.test(text);
+  if (app && !cosa) {
+    return tv('Apro ' + app.nome + ' sulla TV.', 'app', { app: app.nome });
+  }
+  if (cosa && (suYoutube || !app) && has(text, ['metti', 'guarda', 'riproduci', 'fammi vedere', 'cerca', 'trasmetti'])) {
+    return tv('Cerco ' + cosa + ' su YouTube per la TV.', 'guarda', { cosa: cosa });
+  }
+
+  // Tutto il resto, per esempio un film su Netflix, lo si chiede a Google
+  // con le parole dette.
+  return askGoogle(raw);
+}
+
+// I nomi delle app come si dicono a voce.
+var APP_VOCE = [
+  ['prime video', 'Prime Video'], ['amazon', 'Prime Video'], ['prime', 'Prime Video'],
+  ['mediaset', 'Mediaset Infinity'], ['infinity', 'Mediaset Infinity'],
+  ['disney', 'Disney+'], ['rai play', 'RaiPlay'], ['raiplay', 'RaiPlay']
+];
+
+function senzaApp(text){
+  for (var i = 0; i < APPS.length; i++) text = text.split(fold(APPS[i]).replace('+', '').trim()).join(' ');
+  for (var k = 0; k < APP_VOCE.length; k++) text = text.split(APP_VOCE[k][0]).join(' ');
+  return text;
+}
+
+function appIn(text){
+  for (var i = 0; i < APPS.length; i++) {
+    var p = fold(APPS[i]).replace('+', '').trim();
+    if (text.indexOf(p) !== -1) return { nome: APPS[i] };
+  }
+  for (var k = 0; k < APP_VOCE.length; k++) {
+    if (text.indexOf(APP_VOCE[k][0]) !== -1) return { nome: APP_VOCE[k][1] };
+  }
+  return null;
 }
 
 function askGoogle(frase){
