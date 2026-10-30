@@ -73,14 +73,15 @@ dispositivi, scegli il Chromecast della TV.
 Il tasto **Anteprima** mostra nella scheda come apparirà la TV, con le foto
 e i dati veri. Funziona anche prima di questa guida.
 
-## Le protezioni per lo schermo
+## Quando si chiude da solo
 
-Una TV del 2011 può essere al plasma, e un plasma si segna con le immagini
-ferme. Per questo:
+La TV di casa è una LG LCD della serie LW, che non si segna con le immagini
+ferme come succederebbe a un plasma. Restano comunque alcune accortezze,
+perché la TV non resti accesa per niente:
 
 - ora e meteo cambiano posto ogni minuto;
 - la pagina si chiude da sola dopo le ore scelte nelle impostazioni,
-  quattro di fabbrica;
+  otto di fabbrica;
 - si chiude all'inizio delle ore di riposo del pannello;
 - se il tablet si scollega, dopo dieci minuti si chiude.
 

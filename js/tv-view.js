@@ -232,7 +232,7 @@ function cerca(servizi){
 // del suo telecomando. E un modo di visione che si toglie con lo stesso
 // tasto, non un impostazione: il pannello non lo tocca.
 var ISTRUZIONI_3D = 'Quando il video parte, sul telecomando LG premi 3D e scegli lato a lato. ' +
-  'Servono gli occhiali 3D della TV. Per tornare normale premi di nuovo 3D.';
+  'Servono gli occhiali 3D della TV, quelli leggeri senza batteria. Per tornare normale premi di nuovo 3D.';
 
 function tre(){
   var box = document.createElement('div');

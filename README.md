@@ -507,7 +507,7 @@ Le prove del programma si eseguono con `node test/ponte-google.mjs`.
 
 ## Televisore
 
-Un LG del 2011 con il suo sistema NetCast, che LG non aggiorna più, e un
+Un LG LCD 3D del 2011, serie LW, con il suo sistema NetCast, che LG non aggiorna più, e un
 Chromecast nella presa HDMI. La regola è una sola: **il televisore non si
 tocca**. Il pannello non parla mai con la TV e non cambia nessuna delle sue
 impostazioni; tutto passa dal Chromecast, che si stacca quando vuoi.
@@ -543,7 +543,7 @@ mostra i tasti per aprire le app.
 
 La TV è una LG 3D. Il Chromecast manda solo immagini piatte, ma i video
 girati lato a lato su YouTube diventano 3D con il tasto 3D del telecomando
-LG: il tasto "Un video in 3D" li cerca e spiega cosa premere. È un modo di
+LG e gli occhiali passivi, quelli leggeri senza batteria: il tasto "Un video in 3D" li cerca e spiega cosa premere. È un modo di
 visione che si toglie con lo stesso tasto, non un'impostazione della TV.
 
 Accendere e spegnere la TV dal Chromecast funziona solo se nel menu della
@@ -554,10 +554,10 @@ lo stesso.
 Le frasi per Google sono raccolte in cima a `js/tv.js`, tutte insieme: se
 Google ne capisce meglio un'altra, si cambia lì.
 
-Lo schermo di casa ha le sue protezioni per lo schermo, nel caso la TV sia
-al plasma: ora e meteo si spostano ogni minuto, e la pagina si chiude da
-sola dopo le ore scelte, all'inizio delle ore di riposo e dieci minuti dopo
-che il tablet si è scollegato. Le foto viaggiano solo dentro casa, dal
+Lo schermo di casa non lascia la TV accesa per niente: si chiude da solo
+dopo le ore scelte, otto di fabbrica, all'inizio delle ore di riposo e dieci
+minuti dopo che il tablet si è scollegato. Ora e meteo si spostano ogni
+minuto; su un LCD non serve davvero, ma non costa niente. Le foto viaggiano solo dentro casa, dal
 tablet al Chromecast, a pezzi da quaranta kilobyte.
 
 Il tasto Anteprima mostra nella scheda come apparirà la TV, con le foto e i

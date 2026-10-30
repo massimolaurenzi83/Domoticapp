@@ -7,12 +7,13 @@
 // Scritto alla vecchia maniera, senza moduli, perche i Chromecast piu
 // vecchi hanno un browser datato.
 //
-// Tre protezioni per lo schermo, che potrebbe essere al plasma:
-//   - ora e meteo si spostano di poco ogni minuto, cosi nessun punto resta
-//     acceso uguale per ore;
+// La TV di casa e una LG LCD della serie LW, che con le immagini ferme
+// non si segna come un plasma. Restano lo stesso tre accortezze, che non
+// costano niente:
+//   - ora e meteo si spostano di poco ogni minuto;
 //   - la pagina si chiude da sola dopo le ore scelte nelle impostazioni;
 //   - si chiude all inizio delle ore di riposo e quando il tablet sparisce
-//     da dieci minuti.
+//     da dieci minuti, cosi la TV non resta accesa per niente.
 // Chiusa la pagina, il Chromecast torna alla sua schermata di sempre.
 
 (function(){
@@ -25,7 +26,7 @@
   var suChromecast = /CrKey/.test(navigator.userAgent);
   var prova = /[?&]prova=1/.test(location.search) || !suChromecast;
 
-  var conf = { luogo: '', fuso: null, riposoDa: '00:30', riposoA: '06:30', secondiFoto: 25, oreMassime: 4 };
+  var conf = { luogo: '', fuso: null, riposoDa: '00:30', riposoA: '06:30', secondiFoto: 25, oreMassime: 8 };
   var avviatoAlle = Date.now();
   var context = null;
   var chiusuraTimer = null;

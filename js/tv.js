@@ -422,7 +422,7 @@ function sendConfig(){
     riposoDa: settings.sleepStart,
     riposoA: settings.sleepEnd,
     secondiFoto: photoSeconds(),
-    oreMassime: Math.max(1, parseInt(settings.tvScreenHours, 10) || 4)
+    oreMassime: Math.max(1, parseInt(settings.tvScreenHours, 10) || 8)
   });
 }
 
