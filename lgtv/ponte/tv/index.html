@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>TV di casa</title>
+<link rel="stylesheet" href="tv.css">
+</head>
+<body>
+
+<!-- Pagina per il browser della TV LG del 2011, aperta da
+     http://<ponte>:8095/tv. Si usa con il telecomando: tasti colorati per
+     cambiare sezione, frecce e OK per muoversi. -->
+
+<div id="testa">
+  <div id="ora">--:--</div>
+  <div id="data"></div>
+</div>
+
+<div id="contenuto"></div>
+
+<div id="piede">
+  <span class="voce-menu" data-sezione="home"><b class="pallino bianco">0</b> Home</span>
+  <span class="voce-menu" data-sezione="radio"><b class="pallino rosso"></b> Radio</span>
+  <span class="voce-menu" data-sezione="notizie"><b class="pallino verde"></b> Notizie</span>
+  <span class="voce-menu" data-sezione="foto"><b class="pallino giallo"></b> Foto</span>
+  <span class="voce-menu" data-sezione="tre"><b class="pallino blu"></b> 3D</span>
+</div>
+
+<audio id="audio"></audio>
+
+<script src="tv.js"></script>
+</body>
+</html>

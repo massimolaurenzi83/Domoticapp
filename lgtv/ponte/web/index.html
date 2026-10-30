@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0b0d10">
+<meta name="mobile-web-app-capable" content="yes">
+<title>TV LG</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<header>
+  <div class="titolo">TV LG</div>
+  <div class="stato" id="stato">...</div>
+</header>
+
+<nav id="schede">
+  <button type="button" data-scheda="telecomando" class="attiva">Telecomando</button>
+  <button type="button" data-scheda="manda">Manda alla TV</button>
+  <button type="button" data-scheda="radio">Radio</button>
+  <button type="button" data-scheda="tre">3D</button>
+  <button type="button" data-scheda="collega">Collega</button>
+</nav>
+
+<main id="corpo"></main>
+
+<div id="avviso" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>

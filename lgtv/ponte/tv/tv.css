@@ -1,0 +1,46 @@
+/* Per il browser della TV del 2011: niente flexbox ne griglie, che quel
+   motore non conosce. Tutto a posizioni fisse su 1280 per 720, con un
+   margine largo perche la TV taglia i bordi. */
+
+html,body{margin:0;padding:0;width:1280px;height:720px;overflow:hidden;background:#07090c;color:#eef1f4;
+  font-family:"LG Display","Helvetica Neue",Arial,sans-serif;}
+
+#testa{position:absolute;left:80px;top:44px;}
+#ora{font-size:64px;font-weight:200;line-height:1;}
+#data{font-size:24px;color:#a6adb6;margin-top:6px;}
+
+#contenuto{position:absolute;left:80px;top:150px;width:1120px;height:470px;}
+
+#piede{position:absolute;left:80px;right:80px;bottom:40px;font-size:22px;color:#a6adb6;}
+.voce-menu{display:inline-block;margin-right:34px;padding:6px 12px;-webkit-border-radius:10px;border-radius:10px;}
+.voce-menu.attiva{background:#1d232c;color:#fff;}
+.pallino{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;font-size:15px;color:#000;
+  vertical-align:-3px;margin-right:6px;-webkit-border-radius:11px;border-radius:11px;}
+.rosso{background:#e0473f;} .verde{background:#3fae5b;} .giallo{background:#e8c13a;} .blu{background:#3b7be0;}
+.bianco{background:#dfe3e8;}
+
+/* Home */
+.meteo-ora{font-size:96px;font-weight:200;line-height:1;}
+.meteo-desc{font-size:30px;color:#cfd5dc;margin-top:8px;}
+.giorni{margin-top:34px;}
+.giorno{display:inline-block;width:150px;margin-right:16px;padding:18px 20px;background:#141920;-webkit-border-radius:16px;border-radius:16px;vertical-align:top;}
+.giorno .nome{font-size:20px;color:#a6adb6;}
+.giorno .temp{font-size:30px;margin-top:6px;}
+.giorno .desc{font-size:17px;color:#a6adb6;margin-top:4px;}
+.titoli{position:absolute;left:690px;top:0;width:430px;}
+.titoli .t{font-size:21px;line-height:1.35;margin-bottom:14px;color:#dfe3e8;}
+
+/* Elenchi: radio e notizie */
+.elenco .riga{font-size:26px;padding:12px 20px;margin-bottom:6px;-webkit-border-radius:12px;border-radius:12px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.elenco .riga.scelta{background:#2a3340;color:#fff;}
+.elenco .riga.notizia{white-space:normal;font-size:24px;}
+.suona{color:#f0b429;}
+.aiuto{position:absolute;left:0;bottom:-6px;font-size:19px;color:#7d858f;}
+
+/* Foto */
+#foto{position:absolute;left:0;top:0;width:1120px;height:440px;text-align:center;}
+#foto img{max-width:1120px;max-height:440px;}
+
+/* Ore di riposo e stati vuoti */
+.vuoto{font-size:28px;color:#a6adb6;line-height:1.5;padding-top:40px;}

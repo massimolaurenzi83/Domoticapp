@@ -1,0 +1,54 @@
+:root{
+  --bg:#0b0d10; --card:#161a20; --card-hi:#222833; --fg:#f2f3f5; --dim:#9aa1aa;
+  --on:#f0b429; --on-bg:#3a2c0c; --accent:#4a8fe0; --red:#d9534f; --green:#3fa45b; --yellow:#e0b030; --blue:#3a78d8;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,"Roboto","Helvetica Neue",Arial,sans-serif;}
+body{max-width:720px;margin:0 auto;padding:0 14px 90px;-webkit-user-select:none;user-select:none;}
+
+header{display:flex;align-items:baseline;gap:12px;padding:16px 2px 6px;}
+.titolo{font-size:22px;font-weight:600;}
+.stato{font-size:14px;color:var(--dim);flex:1;text-align:right;}
+
+nav{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px;position:sticky;top:0;background:var(--bg);z-index:5;}
+nav button{flex:none;background:transparent;border:0;color:var(--dim);font:inherit;font-size:16px;padding:10px 14px;border-radius:999px;}
+nav button.attiva{background:var(--card-hi);color:var(--fg);}
+
+h2{font-size:15px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:22px 2px 10px;font-weight:600;}
+.nota{font-size:14px;color:var(--dim);line-height:1.5;margin:6px 2px 10px;}
+
+.griglia{display:grid;gap:8px;grid-template-columns:repeat(4,1fr);}
+.griglia.tre{grid-template-columns:repeat(3,1fr);}
+.griglia.due{grid-template-columns:repeat(2,1fr);}
+.b{background:var(--card);border:0;color:var(--fg);font:inherit;font-size:17px;padding:16px 6px;border-radius:14px;min-height:56px;}
+.b:active{background:var(--card-hi);transform:scale(.97);}
+.b.forte{background:var(--on-bg);color:var(--on);}
+.b.spento{color:#ff8a80;}
+.b.rosso{background:#4a1d1c;color:#ffb4ae;} .b.verde{background:#173a22;color:#9be3ae;}
+.b.giallo{background:#3d3210;color:#f5d77a;} .b.blu{background:#162a4a;color:#a9c8ff;}
+.b small{display:block;font-size:12px;color:var(--dim);margin-top:3px;}
+.b[disabled]{opacity:.4;}
+
+/* La croce delle frecce, con OK al centro. */
+.croce{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,64px);gap:8px;}
+.croce .b{min-height:0;}
+.croce .ok{background:var(--card-hi);font-weight:600;}
+
+/* Tavoletta: si scorre per muoversi, si tocca per OK. */
+.tavoletta{height:190px;background:var(--card);border-radius:18px;display:flex;align-items:center;justify-content:center;
+  color:var(--dim);font-size:15px;text-align:center;padding:20px;touch-action:none;}
+.tavoletta.tocco{background:var(--card-hi);}
+
+.riga{display:flex;gap:8px;align-items:center;}
+.campo{flex:1;min-width:0;background:var(--card);border:1px solid #2a303a;color:var(--fg);font:inherit;font-size:17px;padding:14px;border-radius:12px;}
+.elenco{display:flex;flex-direction:column;gap:6px;}
+.voce{background:var(--card);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:16px;}
+.voce .nome{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.voce .dim{color:var(--dim);font-size:13px;}
+.barra{height:6px;background:var(--card-hi);border-radius:3px;overflow:hidden;margin-top:8px;}
+.barra div{height:100%;width:0;background:var(--accent);transition:width .2s;}
+canvas.anteprima{width:100%;border-radius:12px;background:#000;display:block;}
+
+#avviso{position:fixed;left:14px;right:14px;bottom:18px;max-width:692px;margin:0 auto;background:#1d232c;color:var(--fg);
+  padding:14px 18px;border-radius:14px;font-size:15px;line-height:1.4;box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:10;}
+#avviso.male{background:#3a2a10;color:#ffd58a;}
