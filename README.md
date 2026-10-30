@@ -309,7 +309,7 @@ servizio di collegamento sul computer. Le istruzioni per eseguirlo sono scritte 
 | Telecamere | 2 |
 | Citofono | 2 |
 | Radio | 2 |
-| Televisore | 23 |
+| Televisore | 27 |
 | Meteo | 1 |
 | Microfono e fotocamera | 3 |
 | Notifiche | 2 |
@@ -518,7 +518,8 @@ La scheda TV ha quattro parti.
 | Parte | Come funziona | Cosa serve |
 |---|---|---|
 | Telecomando: accendi, spegni, pausa, riprendi, volume, muto | frasi a Google Assistant, come a un Nest | Google Home collegato |
-| App: YouTube, Netflix, RaiPlay e le altre, ricerca su YouTube | frasi a Google Assistant | Chromecast con Google TV |
+| Cosa guardare: un titolo su YouTube o Netflix | frasi a Google Assistant, che lo manda al Chromecast | Google Home collegato; Netflix collegato nell'app Google Home |
+| Musica: Spotify dalle casse della TV | Spotify, come per i Nest | Spotify collegato |
 | Schermo di casa sulla TV: foto, ora, meteo, promemoria, timer, messaggi | una pagina del pannello, `tv/`, che gira sul Chromecast | il numero di `tv/GUIDA.md` |
 | Spegnimento programmato | il pannello di casa manda "spegni" all'ora scelta | Google Home collegato |
 
@@ -527,9 +528,17 @@ A voce:
     Ambrogio metti in pausa la TV
     Ambrogio alza il volume della TV
     Ambrogio metti il volume della TV a 20
-    Ambrogio apri Netflix sulla TV
+    Ambrogio guarda Stranger Things su Netflix sulla TV
+    Ambrogio metti Spotify sulla TV
     Ambrogio metti i video di cucina su YouTube sulla TV
     Ambrogio spegni la TV fra mezz'ora
+
+Il Chromecast di casa è quello rotondo, senza telecomando e senza app sue:
+riceve quello che gli mandano Google, il telefono o il pannello. RaiPlay,
+Prime Video, Disney+, DAZN e Mediaset Infinity partono dal telefono con il
+tasto Trasmetti dentro l'app. Se un giorno arriva un Chromecast con Google
+TV, nelle impostazioni, gruppo Televisore, si sceglie quello e la scheda
+mostra i tasti per aprire le app.
 
 Accendere e spegnere la TV dal Chromecast funziona solo se nel menu della
 TV è attivo SimpLink, il nome che LG dà all'HDMI-CEC. Il pannello non lo

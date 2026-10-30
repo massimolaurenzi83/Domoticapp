@@ -90,6 +90,10 @@ export var SCHEMA = [
     label:'Risposta parlata',
     hint:'Se spenta risponde solo a schermo, senza disturbare' },
 
+  { id:'tvModel', type:'choice', def:'classico', group:'Televisore',
+    label:'Che Chromecast hai',
+    hint:'Quello rotondo non ha app sue: i video arrivano dal telefono o da Google',
+    options: { 'classico': 'Rotondo, senza telecomando', 'googletv': 'Con Google TV e telecomando' } },
   { id:'tvCastAppId', type:'text', def:'', group:'Televisore',
     label:'Numero applicazione Cast',
     hint:'Otto caratteri, si ottiene una volta sola seguendo tv/GUIDA.md. Serve solo allo schermo di casa sulla TV' },

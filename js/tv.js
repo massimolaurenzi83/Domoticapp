@@ -22,6 +22,7 @@ import { sendToGoogle } from './google.js';
 import { photoList } from './photos.js';
 import { loadReminders } from './reminders.js';
 import { activeTimers } from './timers.js';
+import { spotifyReady, spotifyState, spotifyCommand, checkSpotify } from './spotify.js';
 
 var NS = 'urn:x-cast:casa.tv';
 var SDK = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
@@ -73,13 +74,21 @@ var FRASI = {
   muto:      function(n){ return "disattiva l'audio su " + n; },
   audio:     function(n){ return "riattiva l'audio su " + n; },
   app:       function(n, x){ return 'apri ' + x.app + ' su ' + n; },
-  guarda:    function(n, x){ return 'riproduci ' + x.cosa + ' da YouTube su ' + n; }
+  guarda:    function(n, x){ return 'riproduci ' + x.cosa + ' da YouTube su ' + n; },
+  guardaSu:  function(n, x){ return 'guarda ' + x.cosa + ' su ' + x.app + ' su ' + n; }
 };
 
-// Le app che il Chromecast con Google TV sa aprire. Sul Chromecast senza
-// telecomando non ci sono app: Google lo dice, e il pannello lo riporta.
+// Le app che il Chromecast con Google TV sa aprire.
 export var APPS = ['YouTube', 'Netflix', 'Prime Video', 'RaiPlay', 'Disney+',
                    'Mediaset Infinity', 'DAZN', 'Spotify'];
+
+// Il Chromecast rotondo non ha app sue: riceve solo quello che gli manda
+// qualcun altro. Google gli sa mandare YouTube e Netflix, se Netflix e
+// collegato all app Google Home; tutto il resto arriva dal telefono, con il
+// tasto Trasmetti delle app.
+export var GUARDA_APPS = ['YouTube', 'Netflix'];
+
+export function googleTv(){ return settings.tvModel === 'googletv'; }
 
 export function tvPhrase(azione, extra, dev){
   var f = FRASI[azione];
@@ -92,6 +101,7 @@ export function tvPhrase(azione, extra, dev){
 export function tvCommand(azione, extra){
   var dev = tvDevice();
   if (!dev) return Promise.resolve({ ok: false, errore: 'nessun televisore fra i dispositivi' });
+  if (azione === 'spotify') return tvSpotify();
   if (!isLive()) return Promise.resolve({ ok: false, errore: 'Google Home non è ancora collegato' });
 
   if (azione === 'accendi' || azione === 'spegni') {
@@ -104,6 +114,49 @@ export function tvCommand(azione, extra){
   return sendToGoogle(frase).then(function(r){
     if (r.ok && sembraRifiuto(r.risposta)) return { ok: false, frase: frase, errore: 'Google ha risposto: ' + r.risposta };
     return { ok: r.ok, frase: frase, risposta: r.risposta || '', errore: r.errore || '' };
+  });
+}
+
+// ---------- Spotify sulla TV ----------
+//
+// Il Chromecast e anche un altoparlante per Spotify: la musica suona dalle
+// casse della TV. Spotify pero lo fa vedere solo se e stato usato di
+// recente dall app, come i Nest.
+
+function fold(t){
+  return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+export function tvSpotifyDevice(){
+  var dev = tvDevice();
+  var lista = (spotifyState() || {}).dispositivi || [];
+  if (!dev || !lista.length) return null;
+  var nomi = [tvName(dev), dev.name].map(fold).filter(Boolean);
+  for (var n = 0; n < nomi.length; n++) {
+    for (var i = 0; i < lista.length; i++) if (fold(lista[i].nome) === nomi[n]) return lista[i];
+  }
+  // Per somiglianza solo con nomi lunghi: "tv" da solo si trova ovunque.
+  for (var m = 0; m < nomi.length; m++) {
+    if (nomi[m].length < 5) continue;
+    for (var k = 0; k < lista.length; k++) {
+      var s = fold(lista[k].nome);
+      if (s.indexOf(nomi[m]) !== -1 || nomi[m].indexOf(s) !== -1) return lista[k];
+    }
+  }
+  return null;
+}
+
+export function tvSpotify(){
+  if (!spotifyReady()) return Promise.resolve({ ok: false, errore: 'Spotify non è ancora collegato' });
+  return checkSpotify().then(function(){
+    var d = tvSpotifyDevice();
+    if (!d) {
+      return { ok: false, errore: 'Spotify non vede il Chromecast. Basta una volta: apri Spotify sul telefono, ' +
+        'tocca l’icona degli altoparlanti e scegli la TV' };
+    }
+    return spotifyCommand({ azione: 'play', dispositivo: d.id }).then(function(r){
+      return r.ok ? { ok: true, frase: 'Spotify su ' + d.nome, risposta: '' } : { ok: false, errore: r.errore };
+    });
   });
 }
 

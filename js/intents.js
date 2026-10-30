@@ -7,7 +7,7 @@
 
 import { devices, speakers, rooms, roomName, setDevice, toggle, runScene, scenes, isLive } from './devices.js';
 import { spotifyReady, spotifyState, matchDevice, findPlaylist } from './spotify.js';
-import { tvDevice, APPS } from './tv.js';
+import { tvDevice, APPS, googleTv } from './tv.js';
 
 // Risposta onesta quando il comando riguarda qualcosa che il pannello non
 // comanda ancora davvero. Meglio dirlo che fingere di averlo fatto.
@@ -284,6 +284,12 @@ function tvCommand(text, raw, wantsOn, wantsOff){
     if (wantsOn || wantsOff) return null;
     return { reply: 'Non ho il televisore fra i dispositivi.', screen: 'control', tab: 'tv' };
   }
+
+  // Spotify sulla TV passa da Spotify, non da Google.
+  if (has(text, ['spotify', 'musica']) && !has(text, ['pausa', 'ferma', 'stop', 'spegn', 'volume'])) {
+    return tv('Metto Spotify sulla TV.', 'spotify');
+  }
+
   if (!isLive()) return notYet('tv', 'tv');
 
   if (has(text, ['annulla', 'cancella']) && has(text, ['spegn', 'timer'])) {
@@ -334,7 +340,14 @@ function tvCommand(text, raw, wantsOn, wantsOff){
 
   var suYoutube = /\b(su|da|con) youtube\b/.test(text);
   if (app && !cosa) {
-    return tv('Apro ' + app.nome + ' sulla TV.', 'app', { app: app.nome });
+    if (googleTv()) return tv('Apro ' + app.nome + ' sulla TV.', 'app', { app: app.nome });
+    return tv('Il Chromecast rotondo non ha app da aprire: dimmi cosa guardare, per esempio ' +
+              'guarda i cartoni su YouTube sulla TV. ' + app.nome + ' si manda anche dal telefono, con il tasto Trasmetti.');
+  }
+  // "guarda Stranger Things su Netflix sulla TV": lo chiede a Google con il
+  // nome giusto del Chromecast.
+  if (app && cosa && app.nome !== 'YouTube') {
+    return tv('Chiedo a Google ' + cosa + ' su ' + app.nome + ' per la TV.', 'guardaSu', { cosa: cosa, app: app.nome });
   }
   if (cosa && (suYoutube || !app) && has(text, ['metti', 'guarda', 'riproduci', 'fammi vedere', 'cerca', 'trasmetti'])) {
     return tv('Cerco ' + cosa + ' su YouTube per la TV.', 'guarda', { cosa: cosa });

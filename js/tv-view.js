@@ -1,11 +1,12 @@
-// Scheda TV: telecomando, app, schermo di casa e spegnimento programmato.
+// Scheda TV: telecomando, cosa guardare, musica, schermo di casa e
+// spegnimento programmato.
 //
 // Niente qui parla con il televisore: i comandi vanno al Chromecast,
 // attraverso Google o attraverso la rete di casa. Le impostazioni della TV
 // restano quelle di oggi.
 
 import {
-  tvList, tvDevice, chooseTv, tvName, tvCommand, APPS,
+  tvList, tvDevice, chooseTv, tvName, tvCommand, APPS, GUARDA_APPS, googleTv,
   sleepAt, setSleep, clearSleep, onSleepChange,
   castAppId, screenInfo, startScreen, stopScreen, onScreenChange, prepareCast,
   attachPreview, detachPreview
@@ -56,11 +57,24 @@ export function renderTv(body){
   }
   wrap.appendChild(telecomando());
 
-  wrap.appendChild(titolo('App'));
-  wrap.appendChild(nota('Funzionano con il Chromecast con Google TV, quello con il telecomando. ' +
-    'Il Chromecast senza telecomando non ha app sue: Google lo dirà.'));
-  wrap.appendChild(app());
-  wrap.appendChild(cerca());
+  if (googleTv()) {
+    wrap.appendChild(titolo('App'));
+    wrap.appendChild(app());
+    wrap.appendChild(cerca(['YouTube']));
+  } else {
+    // Il Chromecast rotondo non ha app: riceve quello che gli mandano.
+    wrap.appendChild(titolo('Cosa guardare'));
+    wrap.appendChild(nota('Il Chromecast rotondo non ha app sue. Qui sotto lo chiedi a Google, che sa mandare ' +
+      'alla TV YouTube e Netflix; Netflix va collegato una volta nell’app Google Home, alla voce Video. ' +
+      'Tutto il resto, RaiPlay, Prime Video, Disney+, DAZN, Mediaset Infinity, parte dal telefono con il ' +
+      'tasto Trasmetti dentro l’app.'));
+    wrap.appendChild(cerca(GUARDA_APPS));
+  }
+
+  wrap.appendChild(titolo('Musica sulla TV'));
+  wrap.appendChild(nota('Spotify suona dalle casse della TV, attraverso il Chromecast. La radio invece ' +
+    'si manda dalla scheda Radio.'));
+  wrap.appendChild(riga(pulsante('Spotify sulla TV', function(){ invia('spotify'); })));
 
   wrap.appendChild(titolo('Schermo di casa sulla TV'));
   wrap.appendChild(schermoDiCasa());
@@ -190,21 +204,25 @@ function app(){
   return grid;
 }
 
-function cerca(){
+// Un campo e un tasto per ogni servizio: "Su YouTube", "Su Netflix".
+function cerca(servizi){
   var row = document.createElement('div');
-  row.style.cssText = 'display:flex;gap:10px;';
+  row.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;';
   var field = document.createElement('input');
   field.type = 'text';
-  field.placeholder = 'Cosa vuoi guardare su YouTube, per esempio ricetta della carbonara';
+  field.placeholder = 'Cosa vuoi guardare, per esempio ricetta della carbonara';
   field.className = 'tv-field';
-  function vai(){
-    var q = field.value.trim();
-    if (!q) return;
-    invia('guarda', { cosa: q.slice(0, 120) });
+  function vai(app){
+    var q = field.value.trim().slice(0, 120);
+    if (!q) { dici('Scrivi prima cosa vuoi guardare.', true); return; }
+    if (app === 'YouTube') invia('guarda', { cosa: q });
+    else invia('guardaSu', { cosa: q, app: app });
   }
-  field.addEventListener('keydown', function(ev){ if (ev.key === 'Enter') vai(); });
+  field.addEventListener('keydown', function(ev){ if (ev.key === 'Enter') vai(servizi[0]); });
   row.appendChild(field);
-  row.appendChild(pulsante('Guarda sulla TV', vai));
+  servizi.forEach(function(app){
+    row.appendChild(pulsante('Su ' + app, function(){ vai(app); }));
+  });
   return row;
 }
 
