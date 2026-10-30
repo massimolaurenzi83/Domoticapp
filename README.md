@@ -309,7 +309,7 @@ servizio di collegamento sul computer. Le istruzioni per eseguirlo sono scritte 
 | Telecamere | 2 |
 | Citofono | 2 |
 | Radio | 2 |
-| Televisore | 27 |
+| Televisore | 28 |
 | Meteo | 1 |
 | Microfono e fotocamera | 3 |
 | Notifiche | 2 |
@@ -530,6 +530,7 @@ A voce:
     Ambrogio metti il volume della TV a 20
     Ambrogio guarda Stranger Things su Netflix sulla TV
     Ambrogio metti Spotify sulla TV
+    Ambrogio metti un video in 3D sulla TV
     Ambrogio metti i video di cucina su YouTube sulla TV
     Ambrogio spegni la TV fra mezz'ora
 
@@ -539,6 +540,11 @@ Prime Video, Disney+, DAZN e Mediaset Infinity partono dal telefono con il
 tasto Trasmetti dentro l'app. Se un giorno arriva un Chromecast con Google
 TV, nelle impostazioni, gruppo Televisore, si sceglie quello e la scheda
 mostra i tasti per aprire le app.
+
+La TV è una LG 3D. Il Chromecast manda solo immagini piatte, ma i video
+girati lato a lato su YouTube diventano 3D con il tasto 3D del telecomando
+LG: il tasto "Un video in 3D" li cerca e spiega cosa premere. È un modo di
+visione che si toglie con lo stesso tasto, non un'impostazione della TV.
 
 Accendere e spegnere la TV dal Chromecast funziona solo se nel menu della
 TV è attivo SimpLink, il nome che LG dà all'HDMI-CEC. Il pannello non lo

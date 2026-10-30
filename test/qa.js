@@ -875,6 +875,8 @@ prova('Voce', 'la diagnostica dice se manca la voce italiana', voce.speechStatus
     prova('TV', 'un titolo su Netflix si chiede a Google per la TV', film && film.azione === 'guardaSu' && film.extra.cosa === 'stranger things' && film.extra.app === 'Netflix', JSON.stringify(film));
     prova('TV', 'la frase per Netflix nomina il Chromecast', tvm.tvPhrase('guardaSu', { cosa: 'stranger things', app: 'Netflix' }) === 'guarda stranger things su Netflix su televisore');
     prova('TV', '"metti spotify sulla tv" porta Spotify sul Chromecast', (az('metti spotify sulla tv') || {}).azione === 'spotify');
+    const tre = imod.runCommand('metti un video in 3d sulla tv');
+    prova('TV', 'un video in 3D si cerca lato a lato e si spiega il tasto 3D', tre && tre.tv && tre.tv.extra.cosa === 'video 3D side by side' && /tasto|telecomando/.test(tre.reply), tre && tre.reply);
     cfg.settings.tvModel = modello;
     const yt = az('metti i video di gatti su youtube sulla tv');
     prova('TV', 'una ricerca su YouTube arriva alla TV', yt && yt.azione === 'guarda' && yt.extra.cosa === 'i video di gatti', JSON.stringify(yt));

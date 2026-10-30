@@ -323,6 +323,12 @@ function tvCommand(text, raw, wantsOn, wantsOff){
     return tv('Alzo il volume della TV.', 'volSu');
   }
 
+  // La TV e 3D: un video lato a lato diventa 3D con il tasto della TV.
+  if (/(^|[^a-z0-9])(3 ?d|tre ?d|tre di)([^a-z]|$)/.test(text)) {
+    return tv('Cerco un video in 3D. Quando parte, sul telecomando LG premi 3D e scegli lato a lato.',
+              'guarda', { cosa: 'video 3D side by side' });
+  }
+
   if (has(text, ['riprendi', 'continua', 'fai ripartire', 'play'])) return tv('Riprendo sulla TV.', 'riprendi');
   if (has(text, ['pausa', 'ferma'])) return tv('Metto in pausa la TV.', 'pausa');
   if (has(text, ['stop', 'interrompi'])) return tv('Interrompo sulla TV.', 'stop');

@@ -70,6 +70,7 @@ export function renderTv(body){
       'tasto Trasmetti dentro l’app.'));
     wrap.appendChild(cerca(GUARDA_APPS));
   }
+  wrap.appendChild(tre());
 
   wrap.appendChild(titolo('Musica sulla TV'));
   wrap.appendChild(nota('Spotify suona dalle casse della TV, attraverso il Chromecast. La radio invece ' +
@@ -224,6 +225,25 @@ function cerca(servizi){
     row.appendChild(pulsante('Su ' + app, function(){ vai(app); }));
   });
   return row;
+}
+
+// La TV e una LG 3D: il Chromecast manda solo immagini piatte, ma un video
+// girato "lato a lato" la TV lo trasforma in 3D da sola, con il tasto 3D
+// del suo telecomando. E un modo di visione che si toglie con lo stesso
+// tasto, non un impostazione: il pannello non lo tocca.
+var ISTRUZIONI_3D = 'Quando il video parte, sul telecomando LG premi 3D e scegli lato a lato. ' +
+  'Servono gli occhiali 3D della TV. Per tornare normale premi di nuovo 3D.';
+
+function tre(){
+  var box = document.createElement('div');
+  box.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+  box.appendChild(riga(pulsante('Un video in 3D', function(){
+    invia('guarda', { cosa: 'video 3D side by side' });
+    setTimeout(function(){ dici(ISTRUZIONI_3D); }, 2500);
+  })));
+  box.appendChild(nota('La TV è 3D: i video girati lato a lato su YouTube diventano 3D con il tasto 3D ' +
+    'del telecomando LG. ' + ISTRUZIONI_3D));
+  return box;
 }
 
 function schermoDiCasa(){
